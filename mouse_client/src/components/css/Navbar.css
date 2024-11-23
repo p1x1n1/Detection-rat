@@ -1,0 +1,36 @@
+/* Основные стили для навбара */
+.navbar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #001529; /* Тёмный цвет, как у стандартного Nav в Ant Design */
+    padding: 1rem;
+    height: 60px;
+}
+
+/* Стили для ссылок */
+.nav-link {
+    color: #fff; /* Белый текст */
+    font-size: 16px;
+    text-decoration: none;
+    padding: 0 15px;
+}
+
+.nav-link:hover {
+    color: #1890ff; /* При наведении синий цвет, как у Ant Design */
+}
+
+/* Стили для кнопки выхода */
+.logout-button {
+    background-color: #f5222d; /* Красная кнопка выхода */
+    color: white;
+    border: none;
+}
+
+.logout-button:hover {
+    background-color: #ff4d4f; /* Более светлый оттенок красного при наведении */
+}
+
+.logout-button:focus {
+    background-color: #d32029; /* Фокус на кнопке */
+}
