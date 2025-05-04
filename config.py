@@ -23,3 +23,5 @@ DB_URL = (
 )
 
 QUEUE_NAME = 'video_analysis_queue'
+RESPONSE_QUEUE   = os.getenv('RESPONSE_QUEUE', 'video_analysis_response_queue')
+QUEUE_NAME       = os.getenv('QUEUE_NAME', 'video_analysis_queue')
