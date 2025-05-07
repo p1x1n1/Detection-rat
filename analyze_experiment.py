@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from ultralytics import YOLO
 from typing import Dict, Any, Callable
+import math
 
 # === Настройка модели и цветов для классов ===
 model = YOLO("models/best.pt")
@@ -33,6 +34,9 @@ METRIC_MAP = {
 HOLE_EPSILON = 5.0
 mouse_last_position = None
 mouse_moved_threshold = 15
+
+# пороговое расстояние до линии (можно подстроить под разрешение видео)
+LINE_EPSILON = 5.0
 
 def analyze_experiment(exp: Dict[str, Any]) -> Dict[str, Any]:
     active = {}
@@ -184,8 +188,65 @@ def analyze_hole_peek(frame, res, ctx):
     elif not inside:
         ctx["prev_hole_peek"] = False
 
-def analyze_line_count_time(frame, res, ctx):           pass
-def analyze_line_count_horizontal(frame, res, ctx):    pass
+def _analyze_line_crossing(ctx: Dict[str, Any],
+                           lines: list,
+                           prev_flag_key: str,
+                           metric_key: str):
+    """
+    Общая функция: если мышь пересекает любую из линий `lines` и ранее
+    не находилась на линии (prev_flag_key=False), то увеличиваем счётчик
+    metric_key и ставим флаг prev_flag_key=True.
+    Когда мышь уходит с любой линии (расстояние > LINE_EPSILON ко всем), 
+    флаг prev_flag_key сбрасывается, и следующий заход снова посчитается.
+    """
+    pos = ctx.get("mouse_position")
+    if pos is None:
+        # мышь не обнаружена — сбросим флаг, чтобы следующий захват посчитался
+        ctx[prev_flag_key] = False
+        return
+
+    x, y = pos
+    crossed = False
+    for L in lines:
+        x1, y1, x2, y2 = L["x1"], L["y1"], L["x2"], L["y2"]
+        # проекция точки на отрезок:
+        vx, vy = x2 - x1, y2 - y1
+        wx, wy = x - x1, y - y1
+        norm2 = vx*vx + vy*vy
+        if norm2 > 0:
+            t = max(0.0, min(1.0, (wx*vx + wy*vy) / norm2))
+            px, py = x1 + t*vx, y1 + t*vy
+        else:
+            px, py = x1, y1
+        # расстояние от точки до отрезка
+        if math.hypot(x - px, y - py) <= LINE_EPSILON:
+            crossed = True
+            break
+
+    if crossed and not ctx.get(prev_flag_key, False):
+        ctx[metric_key] = ctx.get(metric_key, 0) + 1
+        ctx[prev_flag_key] = True
+    elif not crossed:
+        ctx[prev_flag_key] = False
+
+
+def analyze_line_count_time(frame, res, ctx):
+    # для всех линий
+    _analyze_line_crossing(
+        ctx,
+        ctx.get("line_list", []),
+        prev_flag_key="prev_line_cross",
+        metric_key="line_count_time"
+    )
+
+def analyze_line_count_horizontal(frame, res, ctx):
+    # только для горизонтальных
+    _analyze_line_crossing(
+        ctx,
+        ctx.get("horizontal_line_list", []),
+        prev_flag_key="prev_horizontal_cross",
+        metric_key="line_count_horizontal"
+    )
 def analyze_centr_time(frame, res, ctx):
     """
     Считаем время (в секундах), пока мышь внутри центрального круга.
