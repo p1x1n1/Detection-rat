@@ -9,13 +9,19 @@ from typing import Dict, Any, Callable
 import math
 
 # === Настройка модели и цветов для классов ===
-model = YOLO("models/best.pt")
-color_list = [
-    (128, 0, 128),   # mouse — пурпурный
-    (255, 165, 0),   # hole_peek — оранжевый
-    (0, 255, 255),   # rearing — циан
-    (255, 0, 255)    # grooming — маджента
-]
+model_main = YOLO("models/best17.pt")
+COLOR_MAP_MAIN = {
+    "mouse":     (128,   0, 128),
+    "hole_peek": (255, 165,   0),
+    "rearing":   (  0, 255, 255),
+    "grooming":  (255,   0, 255),
+}
+# модель для дефекаций (и, по желанию, ROI-классов)
+model_def = YOLO("models/best18.pt")
+COLOR_MAP_DEF = {
+    "defecation": (0, 128, 0),
+    # сюда же можно добавить класс "roi", если он есть в best18
+}
 
 DEFAULT_MASK_PATH  = "mask.png"
 DEFAULT_ANNOT_PATH = "mask_annotations.json"
@@ -43,6 +49,9 @@ COULDOWN = 30
 
 # минимальный сдвиг мыши (в пикселях) с последнего события, чтобы засчитать новое
 SHIFT_THRESHOLD = 30.0
+
+# порог (в пикселях) для новой дефекации
+DEFECATION_EPSILON = 30.0
 
 def analyze_experiment(exp: Dict[str, Any]) -> Dict[str, Any]:
     active = {}
@@ -143,7 +152,7 @@ def track_mouse_movement(ctx: Dict[str, Any], res, roi) -> bool:
     pos = None
     # res.boxes.xyxy — глобальные координаты боксов
     for i, cls in enumerate(res.boxes.cls):
-        if model.names[int(cls)].lower() == "mouse":
+        if model_main.names[int(cls)].lower() == "mouse":
             x1, y1, x2, y2 = map(float, res.boxes.xyxy[i])
             # центр бокса переводим в ROI-координаты
             cx = (x1 + x2) / 2 - x_off
@@ -180,7 +189,7 @@ def analyze_rearing(frame, res, ctx):
         ctx["rearing_cooldown"] = cd + 1
 
     # проверяем, есть ли «rearing» в текущем кадре
-    found = any(model.names[int(cls)].lower() == "rearing" for cls in res.boxes.cls)
+    found = any(model_main.names[int(cls)].lower() == "rearing" for cls in res.boxes.cls)
     if not found:
         return
 
@@ -213,7 +222,7 @@ def analyze_grooming_count(frame, res, ctx):
         ctx["grooming_cooldown"] = cd + 1
 
     # ищем «grooming»
-    found = any(model.names[int(cls)].lower() == "grooming" for cls in res.boxes.cls)
+    found = any(model_main.names[int(cls)].lower() == "grooming" for cls in res.boxes.cls)
     if not found:
         return
 
@@ -355,7 +364,26 @@ def analyze_perf_time(frame, res, ctx):
     if inside_periphery and outside_middle:
         ctx["perf_time"] = ctx.get("perf_time", 0.0) + ctx["dt"]
 
-def analyze_defecation_count(frame, res, ctx):                pass
+def analyze_defecation_count(frame, res, ctx):
+    """
+    Для дефекаций используем отдельную модель model_def.
+    Берём её предсказания, центр каждого бокса «defecation» и,
+    если он дальше DEFECATION_EPSILON от всех ранее сохранённых,
+    ++ctx['defecation_count'] и записываем эту позицию.
+    """
+    rd = model_def.predict(frame, conf=0.5)[0]
+    positions = ctx.setdefault("defecation_positions", [])
+    for i, cls in enumerate(rd.boxes.cls):
+        if rd.names[int(cls)].lower() == "defecation":
+            x1, y1, x2, y2 = map(float, rd.boxes.xyxy[i])
+            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+            # если новая точка далеко от всех старых
+            if all(math.hypot(cx - px, cy - py) > DEFECATION_EPSILON
+                   for px, py in positions):
+                ctx["defecation_count"] = ctx.get("defecation_count", 0) + 1
+                positions.append((cx, cy))
+    # сохраняем обновлённый список позиций дефекаций
+    ctx["defecation_positions"] = positions
 
 METRIC_FUNCS: Dict[str, Callable] = {
     "rearing":                analyze_rearing,
@@ -368,32 +396,28 @@ METRIC_FUNCS: Dict[str, Callable] = {
     "defecation_count":       analyze_defecation_count
 }
 
-def plot_boxes_with_multiple_labels(image, boxes, class_probs, result, names):
-    box_offset = 30
+# === Функция отрисовки боксов по цветовой карте ===
+def plot_boxes(image, boxes, result, names, color_map):
+    """
+    Рисует боксы из result.boxes на image, подписи класса и confidence,
+    цвет берётся из color_map по имени класса.
+    """
     for i, box in enumerate(boxes):
-        x1,y1,x2,y2 = map(int, box)
-        off = i * box_offset
-        if class_probs is not None:
-            probs = class_probs[i]
-            top = torch.topk(probs, k=3)
-            main = int(top.indices[0])
-            clr = color_list[main]
-            cv2.rectangle(image, (x1, y1+off), (x2, y2+off), clr, 2)
-            y_text = y1 - 5 + off
-            for cls_idx, conf in zip(top.indices, top.values):
-                nm = names[int(cls_idx)]
-                txt = f"{nm}: {conf:.2f}"
-                y_text -= 20
-                cv2.putText(image, txt, (x1, y_text),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-        else:
-            cls_idx = int(result.boxes.cls[i])
-            conf   = float(result.boxes.conf[i])
-            clr     = color_list[cls_idx]
-            cv2.rectangle(image, (x1, y1+off), (x2, y2+off), clr, 2)
-            txt = f"{names[cls_idx]}: {conf:.2f}"
-            cv2.putText(image, txt, (x1, y1-10+off),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+        x1, y1, x2, y2 = map(int, box)
+        cls_idx = int(result.boxes.cls[i])
+        cls_name = names[cls_idx].lower()
+        clr = color_map.get(cls_name, (255, 255, 255))
+        conf = float(result.boxes.conf[i])
+        cv2.rectangle(image, (x1, y1), (x2, y2), clr, 2)
+        cv2.putText(
+            image,
+            f"{cls_name}: {conf:.2f}",
+            (x1, y1 - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1
+        )
     return image
 
 def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
@@ -465,7 +489,7 @@ def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
 # def predict_on_roi(frame: np.ndarray, roi: tuple):
 #     x_off, y_off, w_roi, h_roi = roi
 #     roi_img = frame[y_off:y_off+h_roi, x_off:x_off+w_roi]
-#     res = model.predict(roi_img, conf=0.5)[0]
+#     res = model_main.predict(roi_img, conf=0.5)[0]
 #     # клонируем и отделяем от графа, чтобы можно было править
 #     boxes = res.boxes.xyxy.clone().detach()
 #     boxes[:, [0, 2]] += x_off
@@ -513,6 +537,7 @@ def process_video_for_metrics(video_path: str,
         "grooming_cooldown":    COULDOWN,
         "last_rearing_pos":     None,
         "last_grooming_pos":    None,
+        "defecation_positions": [],
     }
 
     base, ext = os.path.splitext(os.path.basename(video_path))
@@ -536,7 +561,7 @@ def process_video_for_metrics(video_path: str,
         # ► вместо
         # res, boxes = predict_on_roi(frame, roi)
         # ▼ делаем предсказание на полном кадре:
-        res = model.predict(frame, conf=0.5)[0]
+        res = model_main.predict(frame, conf=0.5)[0]
         # получаем локальную копию боксов
         boxes = res.boxes.xyxy.clone().detach()
 
@@ -553,15 +578,17 @@ def process_video_for_metrics(video_path: str,
             if fn:
                 fn(frame, res, ctx)
 
-        # 4) отрисовка: передаем в plot_boxes уже наш локальный tensor `boxes`
-        viz = plot_boxes_with_multiple_labels(
-            frame.copy(),
-            boxes,
-            res.probs.data if res.probs is not None else None,
-            res,
-            model.names
-        )
+        #  9) визуализация main-модели
+        viz = plot_boxes(frame.copy(),
+                         boxes,
+                         res,
+                         model_main.names,
+                         COLOR_MAP_MAIN)
         annotated = draw_annotations(viz, elems2, roi, mask_w, mask_h, ctx, frame_idx)
+
+        # 10) поверх результирующего кадра рисуем дефекации из ctx
+        for cx, cy in ctx.get("defecation_positions", []):
+            cv2.circle(annotated, (int(cx), int(cy)), 10, COLOR_MAP_DEF["defecation"], 2)
 
         writer.write(annotated)
         cv2.imshow("Analysis", annotated)
