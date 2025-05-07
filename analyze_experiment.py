@@ -120,20 +120,34 @@ def transform_annotations(elems: Dict[str, Any], M: np.ndarray) -> Dict[str, Any
 
     return out
 
-def track_mouse_movement(ctx: Dict[str, Any], res) -> bool:
+# --- Заменяем старую функцию ---
+def track_mouse_movement(ctx: Dict[str, Any], res, roi) -> bool:
+    """
+    Теперь возвращаем позицию мыши в координатах ROI:
+    roi = (x_off, y_off, w_roi, h_roi).
+    """
     global mouse_last_position
+    x_off, y_off, _, _ = roi
     pos = None
+    # res.boxes.xyxy — глобальные координаты боксов
     for i, cls in enumerate(res.boxes.cls):
         if model.names[int(cls)].lower() == "mouse":
             x1, y1, x2, y2 = map(float, res.boxes.xyxy[i])
-            pos = ((x1 + x2)/2, (y1 + y2)/2)
+            # центр бокса переводим в ROI-координаты
+            cx = (x1 + x2) / 2 - x_off
+            cy = (y1 + y2) / 2 - y_off
+            pos = (cx, cy)
             break
+
     ctx["mouse_position"] = pos
     if pos is None:
         return False
+
+    # дальше логика как была, только сравниваем ROI-координаты
     if mouse_last_position is None:
         mouse_last_position = pos
         return False
+
     moved = np.linalg.norm(np.array(pos) - np.array(mouse_last_position)) > mouse_moved_threshold
     if moved:
         mouse_last_position = pos
@@ -172,8 +186,37 @@ def analyze_hole_peek(frame, res, ctx):
 
 def analyze_line_count_time(frame, res, ctx):           pass
 def analyze_line_count_horizontal(frame, res, ctx):    pass
-def analyze_centr_time(frame, res, ctx):               pass
-def analyze_perf_time(frame, res, ctx):                pass
+def analyze_centr_time(frame, res, ctx):
+    """
+    Считаем время (в секундах), пока мышь внутри центрального круга.
+    """
+    pos = ctx.get("mouse_position")
+    center = ctx.get("center_circle")
+    if pos is None or center is None:
+        return
+    dx = pos[0] - center["x"]
+    dy = pos[1] - center["y"]
+    if dx*dx + dy*dy <= center["r"]**2:
+        ctx["centr_time"] = ctx.get("centr_time", 0.0) + ctx["dt"]
+
+def analyze_perf_time(frame, res, ctx):
+    """
+    Считаем время (в секундах), пока мышь между средним и внешним кругом.
+    """
+    pos = ctx.get("mouse_position")
+    periphery = ctx.get("periphery_circle")
+    middle    = ctx.get("middle_circle")
+    if pos is None or periphery is None or middle is None:
+        return
+    dx_p = pos[0] - periphery["x"]
+    dy_p = pos[1] - periphery["y"]
+    dx_m = pos[0] - middle["x"]
+    dy_m = pos[1] - middle["y"]
+    inside_periphery = (dx_p*dx_p + dy_p*dy_p) <= periphery["r"]**2
+    outside_middle   = (dx_m*dx_m + dy_m*dy_m) >= middle["r"]**2
+    if inside_periphery and outside_middle:
+        ctx["perf_time"] = ctx.get("perf_time", 0.0) + ctx["dt"]
+
 def analyze_defecation_count(frame, res, ctx):                pass
 
 METRIC_FUNCS: Dict[str, Callable] = {
@@ -298,6 +341,7 @@ def process_video_for_metrics(video_path: str,
 
     fps   = cap.get(cv2.CAP_PROP_FPS) or 30.0
     delay = max(1, int(1000.0 / fps))
+    dt    = 1.0 / fps
 
     ret, first = cap.read()
     if not ret:
@@ -312,6 +356,7 @@ def process_video_for_metrics(video_path: str,
 
     # контекст с нужными полями
     ctx = {
+        "dt":                  dt,  
         "holes_list":          elems2["holes"],
         "prev_hole_peek":      False,
         "line_list":           elems2["lines"]["horizontal"] + elems2["lines"]["vertical"],
@@ -345,7 +390,10 @@ def process_video_for_metrics(video_path: str,
         boxes = res.boxes.xyxy.clone().detach()
 
         # 2) трекинг мыши (он смотрит в res.boxes.xyxy — это ROI-координаты, ок)
-        moved = track_mouse_movement(ctx, res)
+        # старый вариант:
+        # moved = track_mouse_movement(ctx, res)
+        # теперь:
+        moved = track_mouse_movement(ctx, res, roi)
         ctx["mouse_moved"] = moved
 
         # 3) подсчет активных метрик
@@ -378,5 +426,5 @@ def process_video_for_metrics(video_path: str,
     # сохраняем результаты
     for k in active_metrics:
         if k in ctx:
-            active_metrics[k]["value"] = ctx[k]
+            active_metrics[k]["value"] = round(ctx[k], 2)
     return active_metrics
