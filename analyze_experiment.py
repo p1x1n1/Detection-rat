@@ -47,7 +47,9 @@ def analyze_experiment(exp: Dict[str, Any]) -> Dict[str, Any]:
             active[key] = {
                 "metricId": me["metricId"],
                 "value": 0,
-                "comment": me.get("comment")
+                "comment": me.get("comment"),
+                "startTime": me.get("startTime"),
+                "endTime": me.get("endTime")
             }
     return active
 
@@ -231,7 +233,28 @@ def _analyze_line_crossing(ctx: Dict[str, Any],
 
 
 def analyze_line_count_time(frame, res, ctx):
-    # для всех линий
+    """
+    Считает пересечения всех линий, но только если
+    текущее видео-время в диапазоне [startTime, endTime] для этой метрики.
+    """
+    # извлечём данные по метрике из active_metrics
+    metric = ctx.get("active_metrics", {}).get("line_count_time")
+    if metric is None:
+        return
+
+    # вычисляем текущее время видео (в секундах)
+    frame_idx = ctx.get("frame_idx", 1)
+    current_time = (frame_idx - 1) * ctx.get("dt", 0.0)
+
+    # проверяем границы
+    st = metric.get("startTime")
+    if st is not None and current_time < float(st):
+        return
+    et = metric.get("endTime")
+    if et is not None and current_time > float(et):
+        return
+
+    # если в диапазоне — считаем пересечение
     _analyze_line_crossing(
         ctx,
         ctx.get("line_list", []),
@@ -288,7 +311,7 @@ METRIC_FUNCS: Dict[str, Callable] = {
     "line_count_horizontal":  analyze_line_count_horizontal,
     "centr_time":             analyze_centr_time,
     "perf_time":              analyze_perf_time,
-    "defecation_count":              analyze_defecation_count
+    "defecation_count":       analyze_defecation_count
 }
 
 def plot_boxes_with_multiple_labels(image, boxes, class_probs, result, names):
@@ -352,8 +375,13 @@ def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
 
     base_x = x_off + 10
     base_y = y_off + h_roi - 10
-    cv2.putText(out, f"Frame {frame_idx}", (base_x, base_y),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+    time_sec = (frame_idx - 1) * ctx.get("dt", 0.0)
+    cv2.putText(
+        out,
+        f"Frame {frame_idx} ({time_sec:.2f}s)",
+        (base_x, base_y),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2
+    )
 
     # список тех метрик, которые нужно показывать
     metrics_to_show = [
@@ -418,6 +446,7 @@ def process_video_for_metrics(video_path: str,
     # контекст с нужными полями
     ctx = {
         "dt":                  dt,  
+        "active_metrics":      active_metrics,
         "holes_list":          elems2["holes"],
         "prev_hole_peek":      False,
         "line_list":           elems2["lines"]["horizontal"] + elems2["lines"]["vertical"],
@@ -442,7 +471,9 @@ def process_video_for_metrics(video_path: str,
         ret, frame = cap.read()
         if not ret:
             break
-
+        
+        ctx["frame_idx"] = frame_idx
+        
         # ► вместо
         # res, boxes = predict_on_roi(frame, roi)
         # ▼ делаем предсказание на полном кадре:
