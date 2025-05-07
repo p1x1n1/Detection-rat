@@ -28,7 +28,7 @@ METRIC_MAP = {
     "Время нахождения животного в центральном отсеке лабиринта": "centr_time",
     "Время нахождения животного в периферическом отсеке лабиринта":"perf_time",
     "Количество дефекаций":                               "defecation_count",
-    "Груминг (количество и выраженность)":                "grooming_count"
+    "Количество груминга":                "grooming_count"
 }
 
 HOLE_EPSILON = 5.0
@@ -37,6 +37,12 @@ mouse_moved_threshold = 15
 
 # пороговое расстояние до линии (можно подстроить под разрешение видео)
 LINE_EPSILON = 5.0
+
+#кулдаун для метрик grooming, rearing, hole_peek - может стоит также сохранять координаты предудщего такого случая
+COULDOWN = 30
+
+# минимальный сдвиг мыши (в пикселях) с последнего события, чтобы засчитать новое
+SHIFT_THRESHOLD = 30.0
 
 def analyze_experiment(exp: Dict[str, Any]) -> Dict[str, Any]:
     active = {}
@@ -160,20 +166,67 @@ def track_mouse_movement(ctx: Dict[str, Any], res, roi) -> bool:
     return moved
 
 # === Анализаторы (все с одинаковой сигнатурой) ===
-
 def analyze_rearing(frame, res, ctx):
-    if ctx.get("mouse_moved", False):
-        for cls in res.boxes.cls:
-            if model.names[int(cls)].lower() == "rearing":
-                ctx["rearing"] = ctx.get("rearing", 0) + 1
-                break
+    """
+    Считаем rearing, только если:
+     - класс «rearing» найден,
+     - прошло >= COULDOWN кадров с последнего rearing,
+     - мышь сильно сместилась (>= SHIFT_THRESHOLD) с той позиции, где это считалось в прошлый раз.
+    """
+    pos = ctx.get("mouse_position")
+    # наращиваем кулдаун (лишь до COULDOWN)
+    cd = ctx.get("rearing_cooldown", COULDOWN)
+    if cd < COULDOWN:
+        ctx["rearing_cooldown"] = cd + 1
+
+    # проверяем, есть ли «rearing» в текущем кадре
+    found = any(model.names[int(cls)].lower() == "rearing" for cls in res.boxes.cls)
+    if not found:
+        return
+
+    # достаточный кулдаун?
+    if ctx["rearing_cooldown"] < COULDOWN:
+        return
+
+    # проверяем, что мышь есть и был большой сдвиг
+    if pos is not None:
+        last = ctx.get("last_rearing_pos")
+        if last is None or math.hypot(pos[0] - last[0], pos[1] - last[1]) >= SHIFT_THRESHOLD:
+            # считаем событие
+            ctx["rearing"] = ctx.get("rearing", 0) + 1
+            # сбрасываем кулдаун и обновляем позицию
+            ctx["rearing_cooldown"] = 0
+            ctx["last_rearing_pos"] = pos
+
 
 def analyze_grooming_count(frame, res, ctx):
-    if ctx.get("mouse_moved", False):
-        for cls in res.boxes.cls:
-            if model.names[int(cls)].lower() == "grooming":
-                ctx["grooming_count"] = ctx.get("grooming_count", 0) + 1
-                break
+    """
+    Аналогично для grooming:
+     - найден «grooming»,
+     - прошло >= COULDOWN кадров,
+     - сдвиг >= SHIFT_THRESHOLD.
+    """
+    pos = ctx.get("mouse_position")
+    # кулдаун
+    cd = ctx.get("grooming_cooldown", COULDOWN)
+    if cd < COULDOWN:
+        ctx["grooming_cooldown"] = cd + 1
+
+    # ищем «grooming»
+    found = any(model.names[int(cls)].lower() == "grooming" for cls in res.boxes.cls)
+    if not found:
+        return
+
+    if ctx["grooming_cooldown"] < COULDOWN:
+        return
+
+    if pos is not None:
+        last = ctx.get("last_grooming_pos")
+        if last is None or math.hypot(pos[0] - last[0], pos[1] - last[1]) >= SHIFT_THRESHOLD:
+            ctx["grooming_count"] = ctx.get("grooming_count", 0) + 1
+            ctx["grooming_cooldown"] = 0
+            ctx["last_grooming_pos"] = pos
+
 
 def analyze_hole_peek(frame, res, ctx):
     pos = ctx.get("mouse_position")
@@ -270,6 +323,7 @@ def analyze_line_count_horizontal(frame, res, ctx):
         prev_flag_key="prev_horizontal_cross",
         metric_key="line_count_horizontal"
     )
+
 def analyze_centr_time(frame, res, ctx):
     """
     Считаем время (в секундах), пока мышь внутри центрального круга.
@@ -453,7 +507,12 @@ def process_video_for_metrics(video_path: str,
         "horizontal_line_list": elems2["lines"]["horizontal"],
         "periphery_circle":    elems2.get("periphery_circle"),
         "middle_circle":       elems2.get("middle_circle"),
-        "center_circle":       elems2.get("center_circle")
+        "center_circle":       elems2.get("center_circle"),
+        # кулдауны: не считать повторное событие, пока >0
+        "rearing_cooldown":     COULDOWN,
+        "grooming_cooldown":    COULDOWN,
+        "last_rearing_pos":     None,
+        "last_grooming_pos":    None,
     }
 
     base, ext = os.path.splitext(os.path.basename(video_path))
