@@ -1,5 +1,3 @@
-# consumer.py
-
 import threading
 import pika
 import json
@@ -35,6 +33,31 @@ def publish_response(exp_id: int, video_path: str, metrics: dict):
     )
     conn.close()
 
+def publish_processed_event(exp_id: int, video_path: str):
+    """
+    Отправляет событие о том, что анализ видео начат.
+    """
+    params = pika.URLParameters(RABBIT_URL)
+    params.heartbeat = 0
+    conn = pika.BlockingConnection(params)
+    ch = conn.channel()
+    ch.queue_declare(queue=RESPONSE_QUEUE, durable=False)
+
+    payload = {
+        'pattern': 'video.analyze.processed',
+        'data': {
+            'expId': exp_id,
+            'videoPath': video_path
+        }
+    }
+
+    ch.basic_publish(
+        exchange='',
+        routing_key=RESPONSE_QUEUE,
+        body=json.dumps(payload, ensure_ascii=False)
+    )
+    conn.close()
+
 def handle_message(body: bytes):
     """
     Фоновая обработка одного сообщения: анализ + публикация ответов.
@@ -60,15 +83,21 @@ def handle_message(body: bytes):
 
         for video_path in video_paths:
             print(f"[*] Анализ видео: {video_path}")
+
+            #  Событие начала анализа
+            publish_processed_event(exp_id, video_path)
+
             results = process_video_for_metrics(video_path, active_metrics)
             print(f"[RESULT] {video_path} → {results}")
+
+            #  Событие завершения анализа
             publish_response(exp_id, video_path, results)
 
     except Exception as e:
         print(f"[ERROR] при фоновом анализе: {e}")
 
 def on_message(ch, method, props, body):
-    # 1) сразу подтверждаем приём, чтобы pika мог шлёть heartbeats
+    # 1) подтверждаем приём сразу
     ch.basic_ack(delivery_tag=method.delivery_tag)
     # 2) запускаем тяжёлую работу в фоне
     thread = threading.Thread(
@@ -86,7 +115,7 @@ def main():
     conn = pika.BlockingConnection(params)
     ch = conn.channel()
 
-    # объявляем очереди один раз
+    # объявляем очереди
     ch.queue_declare(queue=QUEUE_NAME, durable=False)
     ch.queue_declare(queue=RESPONSE_QUEUE, durable=False)
 
