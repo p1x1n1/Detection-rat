@@ -586,7 +586,7 @@ def process_video_for_metrics(video_path: str,
     writer     = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
     frame_idx = 1
-    cv2.namedWindow("Analysis", cv2.WINDOW_NORMAL)
+    # cv2.namedWindow("Analysis", cv2.WINDOW_NORMAL)
 
     while True:
         ret, frame = cap.read()
@@ -628,7 +628,7 @@ def process_video_for_metrics(video_path: str,
             cv2.circle(annotated, (int(cx), int(cy)), 10, COLOR_MAP_DEF["defecation"], 2)
 
         writer.write(annotated)
-        cv2.imshow("Analysis", annotated)
+        # cv2.imshow("Analysis", annotated)
         if cv2.waitKey(delay) & 0xFF == 27:
             break
 
