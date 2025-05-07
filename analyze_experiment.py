@@ -26,7 +26,7 @@ METRIC_MAP = {
     "Количество стоек":                                   "rearing",
     "Время нахождения животного в центральном отсеке лабиринта": "centr_time",
     "Время нахождения животного в периферическом отсеке лабиринта":"perf_time",
-    "Количество дефекаций":                               "sret_time",
+    "Количество дефекаций":                               "defecation_count",
     "Груминг (количество и выраженность)":                "grooming_count"
 }
 
@@ -174,7 +174,7 @@ def analyze_line_count_time(frame, res, ctx):           pass
 def analyze_line_count_horizontal(frame, res, ctx):    pass
 def analyze_centr_time(frame, res, ctx):               pass
 def analyze_perf_time(frame, res, ctx):                pass
-def analyze_sret_time(frame, res, ctx):                pass
+def analyze_defecation_count(frame, res, ctx):                pass
 
 METRIC_FUNCS: Dict[str, Callable] = {
     "rearing":                analyze_rearing,
@@ -184,7 +184,7 @@ METRIC_FUNCS: Dict[str, Callable] = {
     "line_count_horizontal":  analyze_line_count_horizontal,
     "centr_time":             analyze_centr_time,
     "perf_time":              analyze_perf_time,
-    "sret_time":              analyze_sret_time
+    "defecation_count":              analyze_defecation_count
 }
 
 def plot_boxes_with_multiple_labels(image, boxes, class_probs, result, names):
@@ -250,10 +250,30 @@ def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
     base_y = y_off + h_roi - 10
     cv2.putText(out, f"Frame {frame_idx}", (base_x, base_y),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-    for i, (m, val) in enumerate(ctx.items(), start=1):
-        y = int(base_y - 30*i)
-        cv2.putText(out, f"{m}: {val}", (base_x, y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+
+    # список тех метрик, которые нужно показывать
+    metrics_to_show = [
+        "mouse_moved",
+        "rearing",
+        "grooming_count",
+        "hole_peek",
+        "line_count_time",
+        "line_count_horizontal",
+        "centr_time",
+        "perf_time",
+        "defecation_count"
+    ]
+
+    # перебираем только нужные и активные метрики
+    line_offset = 1
+    for name in metrics_to_show:
+        if name in ctx:
+            val = ctx[name]
+            y = int(base_y - 30 * line_offset)
+            cv2.putText(out, f"{name}: {val}", (base_x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+            line_offset += 1
+
     return out
 
 def predict_on_roi(frame: np.ndarray, roi: tuple):
@@ -304,7 +324,7 @@ def process_video_for_metrics(video_path: str,
     base, ext = os.path.splitext(os.path.basename(video_path))
     out_fn     = f"{base}_result{ext}"
     out_path   = os.path.join(os.path.dirname(video_path), out_fn)
-    fourcc     = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc     = cv2.VideoWriter_fourcc(*'H264')
     width      = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height     = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     writer     = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
