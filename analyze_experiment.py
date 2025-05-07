@@ -79,6 +79,34 @@ def get_video_paths(exp: Dict[str, Any],
         paths.append(p)
     return paths
 
+def get_roi_auto(frame: np.ndarray,
+                 conf_thresh: float = 0.5,
+                 min_area: float = 1000.0
+                ) -> tuple[int,int,int,int] | None:
+    """
+    Предсказывает на кадре боксы моделью model_def,
+    фильтрует по классу 'roi', выбирает самый большой по площади.
+    Возвращает (x, y, w, h) или None.
+    """
+    rd = model_def.predict(frame, conf=conf_thresh)[0]
+    candidates = []
+    for i, cls in enumerate(rd.boxes.cls):
+        name = rd.names[int(cls)].lower()
+        if name == "roi":
+            x1, y1, x2, y2 = map(float, rd.boxes.xyxy[i])
+            area = (x2 - x1) * (y2 - y1)
+            if area >= min_area:
+                candidates.append({
+                    "bbox": (int(x1), int(y1), int(x2 - x1), int(y2 - y1)),
+                    "area": area,
+                    "conf": float(rd.boxes.conf[i])
+                })
+    if not candidates:
+        return None
+    # выбираем по максимальной площади (можно заменить на max по "conf")
+    best = max(candidates, key=lambda c: c["area"])
+    return best["bbox"]
+
 def load_annotations(path: str) -> Dict[str, Any]:
     with open(path, encoding='utf-8') as f:
         return json.load(f)
@@ -510,12 +538,21 @@ def process_video_for_metrics(video_path: str,
     delay = max(1, int(1000.0 / fps))
     dt    = 1.0 / fps
 
+     # --- читаем первый кадр и определяем ROI ---
     ret, first = cap.read()
     if not ret:
         raise IOError("Empty video")
-    roi = cv2.selectROI("Select ROI", first, showCrosshair=True, fromCenter=False)
-    cv2.destroyWindow("Select ROI")
-    x, y, w_roi, h_roi = roi
+
+    auto_roi = get_roi_auto(first, conf_thresh=0.5, min_area=5000.0)
+    if auto_roi:
+        x, y, w_roi, h_roi = auto_roi
+        print(f"Автоматически выбран ROI: x={x}, y={y}, w={w_roi}, h={h_roi}")
+        roi = (x, y, w_roi, h_roi)
+    else:
+        x, y, w_roi, h_roi = cv2.selectROI("Select ROI", first,
+                                           showCrosshair=True, fromCenter=False)
+        roi = (x, y, w_roi, h_roi)
+    cv2.destroyAllWindows()
 
     warp   = align_mask_to_roi(mask, first[y:y+h_roi, x:x+w_roi])
     elems2 = transform_annotations(elems, warp)
