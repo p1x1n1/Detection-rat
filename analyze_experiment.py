@@ -276,15 +276,15 @@ def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
 
     return out
 
-def predict_on_roi(frame: np.ndarray, roi: tuple):
-    x_off, y_off, w_roi, h_roi = roi
-    roi_img = frame[y_off:y_off+h_roi, x_off:x_off+w_roi]
-    res = model.predict(roi_img, conf=0.5)[0]
-    # клонируем и отделяем от графа, чтобы можно было править
-    boxes = res.boxes.xyxy.clone().detach()
-    boxes[:, [0, 2]] += x_off
-    boxes[:, [1, 3]] += y_off
-    return res, boxes
+# def predict_on_roi(frame: np.ndarray, roi: tuple):
+#     x_off, y_off, w_roi, h_roi = roi
+#     roi_img = frame[y_off:y_off+h_roi, x_off:x_off+w_roi]
+#     res = model.predict(roi_img, conf=0.5)[0]
+#     # клонируем и отделяем от графа, чтобы можно было править
+#     boxes = res.boxes.xyxy.clone().detach()
+#     boxes[:, [0, 2]] += x_off
+#     boxes[:, [1, 3]] += y_off
+#     return res, boxes
 
 def process_video_for_metrics(video_path: str,
                               active_metrics: Dict[str, Any]) -> Dict[str, Any]:
@@ -337,8 +337,12 @@ def process_video_for_metrics(video_path: str,
         if not ret:
             break
 
-        # 1) один вызов — предсказание и сразу готовые global-коробки
-        res, boxes = predict_on_roi(frame, roi)
+        # ► вместо
+        # res, boxes = predict_on_roi(frame, roi)
+        # ▼ делаем предсказание на полном кадре:
+        res = model.predict(frame, conf=0.5)[0]
+        # получаем локальную копию боксов
+        boxes = res.boxes.xyxy.clone().detach()
 
         # 2) трекинг мыши (он смотрит в res.boxes.xyxy — это ROI-координаты, ок)
         moved = track_mouse_movement(ctx, res)
