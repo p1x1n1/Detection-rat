@@ -1,0 +1,55 @@
+.row-success {
+  background-color: #e6fffb !important;
+}
+
+.row-warning {
+  background-color: #fffbe6 !important;
+}
+
+.experiment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.experiment-card {
+  background-color: var(--color-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--spacing);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.experiment-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.experiment-card .ant-typography {
+  color: var(--color-neutral-dark);
+}
+
+.experiment-card .meta {
+  margin-top: var(--spacing);
+  color: var(--color-neutral-dark);
+}
+
+.experiment-card .section {
+  margin-top: var(--spacing);
+}
+
+.experiment-card ul {
+  list-style: none;
+  padding-left: var(--spacing);
+  margin: var(--spacing) 0;
+}
+
+.experiment-card ul ul {
+  padding-left: var(--spacing);
+}
+
+.experiment-card .ant-tag {
+  margin-right: 8px;
+  margin-bottom: 4px;
+  font-family: var(--font-body);
+}

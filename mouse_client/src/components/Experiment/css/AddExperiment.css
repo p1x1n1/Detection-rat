@@ -1,0 +1,50 @@
+.form-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing);
+}
+
+.custom-input,
+.custom-datepicker,
+.ant-select-selector {
+  font-size: 16px;
+  border-color: var(--color-tertiary) !important;
+  border-radius: var(--radius);
+}
+
+.custom-input:focus,
+.custom-datepicker:focus,
+.ant-select-focused .ant-select-selector {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(44, 105, 117, 0.2);
+}
+
+.preview-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.preview-label {
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.preview-animal,
+.preview-video {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.video-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}

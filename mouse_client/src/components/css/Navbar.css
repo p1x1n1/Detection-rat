@@ -1,0 +1,87 @@
+.navbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 70px;
+  padding: 0 var(--spacing);
+  background-color: var(--color-primary);
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.navbar__logo {
+  position: absolute;
+  left: var(--spacing);
+  /* font-family: var(--font-heading); */
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+}
+
+.navbar__btn {
+  color: white;
+}
+
+.navbar__nav {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.navbar__list {
+  display: flex;
+  gap: var(--spacing);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar__item {
+  display: flex;
+  align-items: center;
+}
+
+.navbar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  text-decoration: none;
+  font-size: 1.5rem;
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  transition: all 0.3s ease;
+  border-radius: var(--radius);
+}
+
+.navbar__link:hover,
+.navbar__link__active {
+  /* background-color: var(--color-secondary-dark) !important; */
+  color: var(--color-secondary-dark);
+}
+
+.navbar__actions {
+  position: absolute;
+  right: var(--spacing);
+  display: flex;
+  align-items: center;
+}
+
+.navbar__avatar {
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  border: 2px solid white;
+  object-fit: cover;
+  transition: border-color 0.3s;
+}
+
+.navbar__avatar:hover {
+  border-color: var(--color-primary);
+}
+
+.navbar__icon-img {
+  width: 20px;
+  height: 20px;
+}

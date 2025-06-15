@@ -1,0 +1,10 @@
+export const LOGIN_ROUTE = '/auth';
+export const FORM_ROUTE = '/form';
+export const METRIC_ROUTE = '/metric';
+export const EXPERIMENT_ROUTE = '/experiment';
+export const EXPERIMENT_ROUTE_ADD = '/experiment/add';
+export const VIDEO_ROUTE = '/video';
+export const VIDEO_REPORT_ROUTE = '/video_report';
+export const PROFILE_ROUTE = '/profile';
+export const LAB_ANIMAL_ROUTE = '/labAnimal'
+export const USER_GUIDE_ROUTE = '/user-guide'

@@ -1,0 +1,250 @@
+/* variables.css */
+
+:root {
+  /* Цветовая палитра */
+  --color-primary: #a426b4; /* Тёмный морской */
+  --color-secondary: #6b72b2; /* Мятный */
+  --color-tertiary: #cde0c9; /* Светло-зелёный */
+  --color-quaternary: #e0ecde; /* Очень светло-зелёный */
+  --color-white: #ffffff; /* Чистый фон */
+  --color-deep-green: #4a065e; /* глубокий тёмно-зелёный */
+  --color-deep-green-1: #22543d; /* глубокий тёмно-зелёный */
+  --color-deep-ocean: #1b2396; /* Тёмный морской */
+
+  /* Нейтральные оттенки */
+  --color-neutral-light: var(--color-quaternary);
+  --color-neutral-dark: #001219; /* Тёмный для текста и акцентов */
+
+  /* Типографика */
+  --font-heading: "Montserrat", sans-serif;
+  --font-body: "Lato", sans-serif;
+
+  /* Размеры и отступы */
+  --spacing: 16px;
+  --radius: 1.5rem; /* Скругления (2xl) */
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  /* Сетки и брейкпоинты */
+  --breakpoint-mobile: 768px;
+
+  /* Цвета для статусов экспериментов и видео */
+  --status-created: #4e42f5; /* Создан */
+  --status-queued: #9a4cff; /* В очереди */
+  --status-pending: #795548; /* В ожидании */
+  --status-processing: #2196f3; /* В процессе */
+  --status-extracting-frames: #03a9f4; /* Извлечение кадров */
+  --status-analyzing: #00bcd4; /* Анализ */
+  --status-generating-results: #00acc1; /* Генерация результатов */
+  --status-completed: #4caf50; /* Успешно завершено */
+  --status-failed: #f44336; /* Ошибка */
+  --status-cancelled: #ff9800; /* Отменено */
+  --status-partial-success: #ffc107; /* Частично успешно */
+  --status-reviewed: #8bc34a; /* Проверено */
+  --status-invalid-format: #e91e63; /* Неподдерживаемый формат */
+}
+
+/* Сброс и базовые стили */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%; /* 16px */
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-neutral-dark);
+  background-color: var(--color-white);
+}
+
+/* Заголовки */
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  color: var(--color-neutral-dark);
+  margin-bottom: calc(var(--spacing) / 2);
+}
+
+h1 {
+  font-size: 3rem; /* 48px */
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 2rem; /* 32px */
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.5rem; /* 24px */
+  font-weight: 600;
+}
+
+/* Ссылки */
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--color-secondary);
+  text-decoration: underline;
+}
+
+/* Кнопки */
+.btn {
+  display: inline-block;
+  padding: calc(var(--spacing) / 1.5) var(--spacing);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+  background-color: var(--color-secondary);
+  transform: translateY(-2px);
+}
+
+/* Карточки */
+.card {
+  background-color: var(--color-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--spacing);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Аватары и иконки */
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: middle;
+  stroke: currentColor;
+  transition: transform 0.2s ease;
+}
+
+.icon:hover {
+  transform: scale(1.1);
+}
+
+/* Подсказки */
+.tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background-color: var(--color-neutral-dark);
+  color: var(--color-white);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.tooltip::after {
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Сетка */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--spacing);
+}
+
+@media (max-width: var(--breakpoint-mobile)) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Утилитарные классы */
+.u-mb-sm {
+  margin-bottom: calc(var(--spacing) / 2);
+}
+.u-mb {
+  margin-bottom: var(--spacing);
+}
+.u-mt {
+  margin-top: var(--spacing);
+}
+.u-p {
+  padding: var(--spacing);
+}
+
+/* Хедер (NavBar) */
+.header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  background-color: var(--color-neutral-light);
+  padding: 0 var(--spacing);
+}
+
+.header .logo {
+  position: absolute;
+  left: var(--spacing);
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.header nav ul {
+  list-style: none;
+  display: flex;
+  gap: var(--spacing);
+}
+
+.header nav a {
+  font-weight: 600;
+}
+
+/* Футер */
+.footer {
+  background-color: var(--color-neutral-dark);
+  color: var(--color-white);
+  text-align: center;
+  padding: var(--spacing);
+  font-size: 0.875rem;
+}

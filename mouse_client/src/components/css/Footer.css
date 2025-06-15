@@ -1,0 +1,21 @@
+.footer {
+    background-color: var(--color-neutral-dark);
+    color: var(--color-white);
+    padding: var(--spacing);
+    text-align: center;
+  }
+  
+  .footer .socials {
+    margin-top: 8px;
+  }
+  
+  .footer .socials a {
+    margin: 0 8px;
+    color: var(--color-white);
+    text-decoration: none;
+  }
+  
+  .footer .socials a:hover {
+    text-decoration: underline;
+  }
+  

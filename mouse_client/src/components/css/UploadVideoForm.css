@@ -1,0 +1,138 @@
+/* components/Video/css/UploadVideoForm.css */
+
+.upload-form {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--spacing);
+  background-color: var(--color-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Разделяем форму на две колонки */
+.upload-form__top {
+  display: flex;
+  gap: var(--spacing);
+}
+
+/* Левая колонка: текстовые поля */
+.upload-form__left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+/* Правая колонка: загрузчик файла */
+.upload-form__right {
+  flex: 1;
+}
+
+/* Драггер-область */
+.custom-dragger {
+  border: 2px dashed var(--color-tertiary);
+}
+
+.custom-dragger .ant-upload-drag-icon {
+  color: var(--color-secondary);
+}
+
+.custom-dragger:hover {
+  border-color: var(--color-secondary);
+}
+
+.selected-file {
+  margin-top: var(--spacing);
+  font-style: italic;
+  color: var(--color-neutral-dark);
+}
+
+/* Предпросмотр видео */
+.upload-form__preview {
+  margin-top: var(--spacing);
+  text-align: center;
+}
+
+.upload-form__preview video {
+  width: 100%;
+  max-height: 400px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Кнопка отправки */
+.upload-form__submit {
+  margin-top: var(--spacing);
+  text-align: right;
+}
+
+.custom-btn-primary {
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+}
+
+.custom-btn-primary:hover {
+  background-color: var(--color-secondary) !important;
+  border-color: var(--color-secondary) !important;
+}
+
+.upload-form__preview {
+  margin-top: var(--spacing);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing);
+}
+
+.upload-form__preview video {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  background-color: #000;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Стилизуем предупреждение Antd Alert */
+.upload-form__preview .ant-alert {
+  margin-bottom: var(--spacing);
+}
+.custom-datepicker .ant-picker-input > input {
+  font-size: 24px !important;
+  line-height: 1.2;
+}
+
+/* Календарный попап */
+.custom-datepicker .ant-picker-panel,
+.custom-datepicker .ant-picker-panel * {
+  font-size: 24px !important;
+}
+
+/* Корректируем высоту и паддинги */
+.custom-datepicker .ant-picker-input {
+  padding: 0.75rem;
+}
+
+.custom-checkbox {
+  font-size: 16px;
+  margin-top: 10px;
+  border: 1px solid var(--color-border);
+  color: var(--color-bg-secondary);
+}
+
+.animal-preview-side {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  width: 300px;
+  height: 400px;
+  overflow: hidden;
+}
+
+.animal-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}

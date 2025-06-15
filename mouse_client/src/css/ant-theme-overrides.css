@@ -1,0 +1,106 @@
+@import './variables.css'; 
+
+/* ====== Buttons ====== */
+.ant-btn-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: var(--color-secondary);
+  border-color: var(--color-secondary);
+}
+
+/* Danger */
+.ant-btn-dangerous {
+  background-color: #f5222d;
+  border-color: #f5222d;
+}
+.ant-btn-dangerous:hover {
+  background-color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+/* ====== Menu ====== */
+.ant-menu-light {
+  background-color: var(--color-white);
+}
+.ant-menu-light .ant-menu-item:hover {
+  background-color: var(--color-quaternary);
+}
+.ant-menu-light .ant-menu-item-selected {
+  background-color: var(--color-tertiary);
+}
+
+/* ====== Tabs ====== */
+.ant-tabs-nav .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--color-primary);
+}
+.ant-tabs-ink-bar {
+  background-color: var(--color-primary);
+}
+
+/* ====== Form controls ====== */
+/* Input */
+.ant-input {
+  border-color: var(--color-tertiary);
+}
+.ant-input:focus,
+.ant-input-focused {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(44,105,117,0.2);
+}
+
+/* Select */
+.ant-select-selector {
+  border-color: var(--color-tertiary) !important;
+}
+.ant-select-focused .ant-select-selector {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(44,105,117,0.2);
+}
+
+/* Checkbox */
+.ant-checkbox-inner {
+  border-color: var(--color-tertiary);
+}
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Switch */
+.ant-switch-checked {
+  background-color: var(--color-primary);
+}
+
+/* ====== Table ====== */
+.ant-table-thead > tr > th {
+  background-color: var(--color-tertiary);
+}
+.ant-table-tbody > tr:hover > td {
+  background-color: var(--color-quaternary);
+}
+
+/* ====== Pagination ====== */
+.ant-pagination-item-active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.ant-pagination-item-active a {
+  color: var(--color-white);
+}
+
+/* ====== Alerts, Tag, Badge, etc. (пример) ====== */
+/* Info Alert */
+.ant-alert-info {
+  background-color: var(--color-tertiary);
+  border-color: var(--color-tertiary);
+}
+/* Tag.default */
+.ant-tag-default {
+  background-color: var(--color-quaternary);
+  color: var(--color-neutral-dark);
+}
+

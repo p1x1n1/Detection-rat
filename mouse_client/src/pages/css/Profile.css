@@ -1,0 +1,58 @@
+/* Контейнер */
+.profile-container {
+  padding: var(--spacing);
+}
+
+/* Основная карточка */
+.profile-card {
+  background-color: var(--color-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Шапка профиля: аватар + инфо */
+.profile-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing);
+}
+
+/* Большой закруглённый квадратный аватар */
+.profile-avatar {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  margin-right: var(--spacing);
+  background-color: var(--color-quaternary);
+}
+
+/* Инфо рядом с аватаром */
+.profile-info {
+  flex: 1;
+}
+
+/* Descriptions */
+.profile-descriptions .ant-descriptions-item-label {
+  font-weight: 600;
+  color: var(--color-neutral-dark);
+}
+
+/* Действия (кнопки) */
+.profile-actions {
+  margin-top: var(--spacing);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Карточки статистики */
+.stat-card {
+  text-align: center;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

@@ -1,0 +1,94 @@
+/* .Container{
+    margin-top: 1%;
+} */
+Button {
+  margin: 1%;
+}
+Col {
+  padding: 5px;
+}
+.section-title {
+  margin-bottom: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custom-section {
+  margin-bottom: 1rem;
+}
+
+@font-face {
+  font-family: "Coolvetica"; /* Имя, под которым будете вызывать */
+  src: url("./fonts/coolvetica\ condensed\ rg.ttf") format("woff2"),
+    url("./fonts/coolvetica\ condensed\ rg.ttf") format("woff"),
+    url("./fonts/coolvetica\ crammed\ rg.ttf") format("woff"),
+    url("./fonts/coolvetica\ rg.ttf") format("woff");
+  font-weight: normal; /* Или 400 */
+  font-style: normal;
+  font-display: swap; /* Быстрая подмена при загрузке */
+}
+
+@font-face {
+  font-family: "Gosznak"; /* Имя, под которым будете вызывать */
+  src: url("./fonts/Gosznak-Semi\ Bold.otf") format("woff2"),
+    url("./fonts/Gosznak-Semi\ Bold\ Oblique.otf") format("woff");
+  font-weight: normal; /* Или 400 */
+  font-style: normal;
+  font-display: swap; /* Быстрая подмена при загрузке */
+}
+
+@font-face {
+  font-family: "TechMono"; /* Имя, под которым будете вызывать */
+  src: url("./fonts/ShareTechMonoRegular_0.otf") format("woff2"),
+    url("./fonts/ShareTechMonoRegular_0.otf") format("woff");
+  font-weight: normal; /* Или 400 */
+  font-style: normal;
+  font-display: swap; /* Быстрая подмена при загрузке */
+}
+
+* {
+  font-family: "Coolvetica";
+  font-size: 1.5rem;
+  font-weight: 200;
+}
+
+.ant-form-item-label > label {
+  font-size: 24px !important;
+  font-weight: 200;
+}
+.ant-modal-title {
+  font-size: 1.5rem !important;
+  font-weight: 200;
+}
+
+.container-fluid {
+  margin: 10px 10px;
+  height: 80%;
+  min-height: 900px;
+}
+
+p.ant-upload-drag-icon .anticon {
+  color: var(--color-primary) !important;
+}
+
+.auth-container {
+  background-color: var(--color-secondary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-card {
+  background-color: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 3px solid var(--color-secondary-dark);
+  padding: 24px;
+  min-width: 400px;
+  width: 100%;
+  max-width: 480px;
+}
