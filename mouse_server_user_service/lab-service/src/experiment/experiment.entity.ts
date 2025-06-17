@@ -34,7 +34,7 @@ export class Experiment {
   @ManyToOne(() => Status, (status) => status.experiments)
   status: Status;
 
-  @ManyToOne(() => User, (user) => user.experiments)
+  @ManyToOne(() => User, (user) => user.experiments, {onDelete: 'CASCADE'})
   user: User;
 
   @OneToMany(() => MetricExperiment, exp => exp.experiment, {

@@ -21,6 +21,8 @@ import CardVideo from "../Video/CardVideo";
 import { API_SERVICE } from "../../service/api.service";
 // import { BASE_URL } from "../../App";
 import "./css/AddExperiment.css";
+import { useNavigate } from "react-router-dom";
+import { EXPERIMENT_ROUTE } from "../../utils/const";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -29,13 +31,13 @@ const AddExperiment = () => {
     const [videos, setVideos] = useState([]);
     const [metrics, setMetrics] = useState([]);
     const [metricTimes, setMetricTimes] = useState({});
-    // { [metricId]: { startH, startM, startS, endH, endM, endS } }
     const [selectedVideos, setSelectedVideos] = useState([]);
     const [selectedMetrics, setSelectedMetrics] = useState([]);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
     const [currentPage, setCurrentPage] = useState(1);
     const videosPerPage = 2;
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -103,6 +105,7 @@ const AddExperiment = () => {
             form.resetFields();
             setSelectedVideos([]);
             setSelectedMetrics([]);
+            navigate(EXPERIMENT_ROUTE);
         } catch (error) {
             message.error("Ошибка при сохранении");
         }

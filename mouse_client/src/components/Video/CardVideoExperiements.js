@@ -27,28 +27,19 @@ const CardVideoExperiments = ({ video }) => {
     };
 
     const handleDeleteClick = () => {
-        if (video.videoExperiments?.length > 0) {
-            Modal.warning({
-                title: 'Нельзя удалить видео',
-                content: (
-                    <>
-                        <Text>
-                            Видео участвует в следующих экспериментах:
-                        </Text>
-                        <ul>
-                            {video.videoExperiments.map((ve) => (
-                                <li key={ve.experimentId}>{ve.experiment?.name}</li>
-                            ))}
-                        </ul>
-                    </>
-                ),
-            });
-            return;
-        }
-
         Modal.confirm({
             title: 'Удалить видео?',
-            content: 'Вы уверены, что хотите удалить это видео?',
+            content: ((video.videoExperiments?.length > 0 && <>
+                <Text>
+                    Видео участвует в следующих экспериментах:
+                </Text>
+                <ul>
+                    {video.videoExperiments.map((ve) => (
+                        <li key={ve.experimentId}>{ve.experiment?.name}</li>
+                    ))}
+                </ul>
+            </>) || <>Вы уверены, что хотите удалить это видео?</>
+            ),
             okText: 'Удалить',
             cancelText: 'Отмена',
             onOk: async () => {

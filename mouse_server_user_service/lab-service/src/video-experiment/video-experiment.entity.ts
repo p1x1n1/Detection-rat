@@ -1,14 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, PrimaryColumn, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, PrimaryColumn, JoinColumn, OneToMany } from 'typeorm';
 import { Experiment } from '../experiment/experiment.entity';
 import { Video } from 'src/video/video.entity';
 import { Status } from 'src/status/status.entity';
+import { MetricVideoExperiment } from 'src/metric-video-experiment/metric-video-experiment.entity';
 
 @Entity()
 export class VideoExperiment {
-  @PrimaryColumn('int')
+  @PrimaryGeneratedColumn()
+  videoExperimentId: number;
+
+  @Column('int')
   experimentId: number;
 
-  @PrimaryColumn('int')
+  @Column('int')
   videoId: number;
 
   @Column({ nullable: true })
@@ -27,6 +31,9 @@ export class VideoExperiment {
   @ManyToOne(() => Video, v => v.videoExperiments)
   @JoinColumn({ name: 'videoId' })
   video: Video;
+
+  @OneToMany(() => MetricVideoExperiment, (experiment) => experiment.videoExperimentId)
+  metricVideoExperiments: MetricVideoExperiment[];
 
   @ManyToOne(() => Status, (status) => status.videos)
   status: Status;

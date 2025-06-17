@@ -4,11 +4,11 @@ import { Row, Col, Empty, Spin, Typography } from "antd";
 import CardVideoExperiments from "./CardVideoExperiements";
 import { API_SERVICE } from "../../service/api.service";
 
-const { Title } = Typography;
+// const { Title } = Typography;
 
 const OneVideo = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,10 +32,6 @@ const OneVideo = () => {
 
   return (
     <>
-      <Title level={2} style={{ marginBottom: 16 }}>
-        Видео
-      </Title>
-
       {loading ? (
         <Spin size="large" />
       ) : video ? (

@@ -31,15 +31,12 @@ export class Video {
     @Column({ default: false })
     isExperimentAnimal?: boolean;
 
-    @ManyToOne(() => LabAnimal, (labAnimal) => labAnimal.videos, {nullable: true})
+    @ManyToOne(() => LabAnimal, (labAnimal) => labAnimal.videos, { nullable: true, onDelete: 'SET NULL', })
     labAnimal: LabAnimal;
 
     @OneToMany(() => VideoExperiment, (experiment) => experiment.video)
     videoExperiments: VideoExperiment[];
 
-    @OneToMany(() => MetricVideoExperiment, (experiment) => experiment.video)
-    metricVideoExperiments: MetricVideoExperiment[];
-
-    @ManyToOne(() => User, (user) => user.videos)
+    @ManyToOne(() => User, (user) => user.videos, {onDelete: 'CASCADE'})
     user: User;
 }

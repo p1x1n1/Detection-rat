@@ -36,7 +36,7 @@ export class ExperimentService {
 
     @Inject('VIDEO_ANALYSIS_CLIENT')
     private readonly client: ClientProxy,
-  ) {}
+  ) { }
 
   async createExperiment(dto: CreateExperimentDto, user: JwtUserPayload): Promise<Experiment> {
     const { videoIds, metricExperiments, ...experimentData } = dto;
@@ -143,6 +143,29 @@ export class ExperimentService {
     return { status: 'queued', exp };
   }
 
+  async stopAnalyze(id: number, user: JwtUserPayload) {
+    const exp = await this.getExperimentById(id, user);
+
+    const status = await this.statusRepository.findOneBy({ statusName: 'Анализ прекращен' });
+    if (status) {
+      exp.status = status;
+      await this.experimentRepository.save(exp);
+    }
+
+    const videoExperiments = await this.videoExperimentRepository.find({
+      where: { experiment: { id } },
+      relations: ['video'],
+    });
+
+    for (const ve of videoExperiments) {
+      ve.status = status;
+      await this.videoExperimentRepository.save(ve);
+    }
+
+    await lastValueFrom(this.client.emit('video.analyze.stopped', { exp }));
+    return { status: 'queued', exp };
+  }
+
   async analyzedProccesed(data: AnalyzeProccessed) {
     const rawFilename = data.videoPath.split(/[/\\]/).pop();
     const fullFilename = `/static/videos/${rawFilename}`;
@@ -178,17 +201,19 @@ export class ExperimentService {
     const fullFilename = `/static/videos/${rawFilename}`;
 
     const parsedName = path.parse(rawFilename);
-    const resultFilename = `${parsedName.name}_result${parsedName.ext}`;
+    const resultFilename = `${parsedName.name}_${expId}_result${parsedName.ext}`;
     const fullFilenameResult = `/static/videos/${resultFilename}`;
 
     const videoId = await this.videoService.getVideoIdByFilename(fullFilename);
     if (!videoId) throw new Error(`Video not found: ${fullFilename}`);
 
+    const videoExperiment = await this.videoExperimentRepository.findOne({ where: { videoId: videoId, experimentId: expId } });
+
     for (const metricKey in metrics) {
       const metricData = metrics[metricKey];
       await this.metricVideoExperimentRepository.save({
         experimentId: expId,
-        videoId,
+        videoExperiment,
         metricId: metricData.metricId,
         value: metricData.value,
         comment: metricData.comment,

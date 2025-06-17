@@ -25,10 +25,12 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const response = await apiService.post('/auth/login', values);
-      if (response.token) {
+      if (response.token && response.user){
+        console.log("login", response.user)
         message.success('Вы успешно авторизовались!');
         localStorage.setItem('token', response.token);
-        user.setUser(response.user);
+        user.checkSession();
+        // user.setUser(response.user);
         user.setIsAuth(true);
         navigate(PROFILE_ROUTE);
       } else {
@@ -45,10 +47,11 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const response = await apiService.post('/auth/registration', values);
-      if (response.token) {
+      if (response.token && response.user) {
         message.success('Регистрация успешна!');
         localStorage.setItem('token', response.token);
-        user.setUser(response.user);
+        user.checkSession();
+        // user.setUser(response.user);
         user.setIsAuth(true);
         navigate(PROFILE_ROUTE);
       } else {

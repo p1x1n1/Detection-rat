@@ -14,13 +14,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser, JwtUserPayload } from 'src/auth/jwt.strategy';
 
 @ApiTags('Experiment')
-@UseGuards(AuthGuard('jwt'))
 @Controller('experiment')
 export class ExperimentController {
   constructor(private readonly experimentService: ExperimentService) {}
 
   @ApiOperation({ summary: 'Создать эксперимент' })
   @ApiResponse({ status: 201, description: 'Эксперимент создан', type: Experiment })
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   createExperiment(
     @Body() dto: CreateExperimentDto,
@@ -31,11 +31,13 @@ export class ExperimentController {
 
   @ApiOperation({ summary: 'Получить все эксперименты' })
   @ApiResponse({ status: 200, description: 'Список экспериментов', type: [Experiment] })
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   getAllExperiments(@CurrentUser() user: JwtUserPayload): Promise<Experiment[]> {
     return this.experimentService.getAllExperiments(user);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/report/excel')
   async downloadReport(
     @Param('id', ParseIntPipe) id: number,
@@ -68,7 +70,7 @@ export class ExperimentController {
         ve.video.labAnimal ? (ve.video.labAnimal.sex ? 'Самец ♂' : 'Самка ♀') : '',
         ...metricNames.map(name => {
           const mv = metricVideoExps.find(
-            m => m.videoId === ve.videoId && m.metric.metricName === name
+            m => m.videoExperimentId === ve.videoId && m.metric.metricName === name
           );
           return mv ? mv.value : 0;
         }),
@@ -93,6 +95,7 @@ export class ExperimentController {
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard('jwt'))
   getExperimentById(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtUserPayload
@@ -101,6 +104,7 @@ export class ExperimentController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
   deleteExperiment(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtUserPayload
@@ -109,8 +113,19 @@ export class ExperimentController {
   }
 
   @Get('analyze/:id')
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Запустить анализ видео' })
   analyze(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtUserPayload
+  ) {
+    return this.experimentService.analyze(id, user);
+  }
+
+  @Get('analyze/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Запустить анализ видео' })
+  stopAnalyze(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtUserPayload
   ) {

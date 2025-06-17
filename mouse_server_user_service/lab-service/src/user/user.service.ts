@@ -3,7 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/create-user.dto';
-
+import * as path from 'path';
+import * as fs from 'fs/promises';
 @Injectable()
 export class UserService {
     constructor(
@@ -19,19 +20,30 @@ export class UserService {
         return this.userRepository.save(user);
     }
 
-    async updateUser(login: string, dto: UpdateUserDto): Promise<User> {
-        // 1) preload создаёт новый Entity и загружает существующий по PK (login)
+    async updateUser(login: string, dto: UpdateUserDto, newImagePath: string | undefined,): Promise<User> {
+        if (newImagePath) {
+            if (dto.imagePath) {
+                const oldPath = path.join(process.cwd(), 'static', dto.imagePath.replace(/^\/?static\/?/, ''));
+                try {
+                    await fs.unlink(oldPath);
+                } catch (e) {
+                    console.warn(`Не удалось удалить старое изображение: ${oldPath}`);
+                }
+            }
+
+            dto.imagePath = newImagePath;
+        }
+
         const user = await this.userRepository.preload({
-          login,
-          ...dto,
+            login,
+            ...dto,
         });
         if (!user) {
-          throw new NotFoundException(`Пользователь с логином ${login} не найден`);
+            throw new NotFoundException(`Пользователь с логином ${login} не найден`);
         }
-        // 2) если нужно — здесь можно ещё захешировать пароль и т.п.
-    
+
         return this.userRepository.save(user);
-      }
+    }
 
     async getAllUsers(): Promise<User[]> {
         return this.userRepository.find({ relations: ['role'] });
@@ -43,10 +55,10 @@ export class UserService {
 
     async getUserByLoginForValidate(login: string): Promise<User | null> {
         return this.userRepository.createQueryBuilder('user')
-        .addSelect('user.password') // Добавляем выборку пароля
-        .leftJoinAndSelect('user.role', 'role') // Подключаем роль пользователя
-        .where('user.login = :login', { login })
-        .getOne();
+            .addSelect('user.password') // Добавляем выборку пароля
+            .leftJoinAndSelect('user.role', 'role') // Подключаем роль пользователя
+            .where('user.login = :login', { login })
+            .getOne();
     }
 
     async deleteUser(login: string): Promise<void> {

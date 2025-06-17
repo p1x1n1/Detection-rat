@@ -34,7 +34,7 @@ async def handle_video(exp_id: int, video_path: str, metrics: dict):
 
             # Выполняем анализ (блокирующий код можно обернуть в executor)
             loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(None, process_video_for_metrics, video_path, metrics)
+            results = await loop.run_in_executor(None, process_video_for_metrics, exp_id, video_path, metrics)
 
             print(f"[RESULT] {video_path} → {results}")
 

@@ -18,7 +18,6 @@ import { JwtUserPayload } from 'src/auth/jwt.strategy';
 
 const ffprobeStatic = require('ffprobe-static');
 const execFileAsync = promisify(execFile);
-
 @Injectable()
 export class VideoService {
   private readonly uploadDir = path.join(process.cwd(), 'static', 'videos');
@@ -28,53 +27,84 @@ export class VideoService {
     private readonly videoRepo: Repository<Video>,
     @InjectRepository(Experiment)
     private readonly expRepo: Repository<Experiment>,
-  ) {}
+  ) { }
 
   async createVideo(dto: CreateVideoDto, fileUrl: string, user: JwtUserPayload): Promise<Video> {
-    const fileName = path.basename(fileUrl);
-    const filePath = path.join(this.uploadDir, fileName);
+    try {
+      const fileName = path.basename(fileUrl);
+      const filePath = path.join(this.uploadDir, fileName);
 
-    const { stdout } = await execFileAsync(
-      ffprobeStatic.path,
-      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nk=1:nw=1', filePath]
-    );
-    const durationSec = parseFloat(stdout);
+      const { stdout } = await execFileAsync(
+        ffprobeStatic.path,
+        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nk=1:nw=1', filePath]
+      );
+      const durationSec = parseFloat(stdout);
+      let labAnimal = null;
+      if (dto.labAnimalId !== null && dto.labAnimalId !== undefined) {
+        const parsed = Number(dto.labAnimalId);
+        if (!isNaN(parsed)) {
+          labAnimal = { id: parsed };
+        }
+      }
 
-    const video = this.videoRepo.create({
-      ...dto,
-      filename: fileUrl,
-      durationMinutes: Math.floor(durationSec / 60),
-      durationSeconds: Math.floor(durationSec % 60),
-      isExperimentAnimal: dto.isExperimentAnimal ?? false,
-      labAnimal: dto.labAnimalId ? { id: dto.labAnimalId } : null,
-      user: { login: user.login }, // если доступен id, лучше использовать { id: user.id }
-    });
+      const video = this.videoRepo.create({
+        ...dto,
+        filename: fileUrl,
+        durationMinutes: Math.floor(durationSec / 60),
+        durationSeconds: Math.floor(durationSec % 60),
+        isExperimentAnimal: dto.isExperimentAnimal ?? false,
+        ...(labAnimal ? { labAnimal } : {}),
+        user: { login: user.login },
+      });
 
-    return this.videoRepo.save(video);
+      return await this.videoRepo.save(video);
+    } catch (err) {
+      console.error('Ошибка в createVideo:', err.message, {
+        dto,
+        fileUrl,
+        user,
+      });
+      throw err;
+    }
   }
 
   async getAllVideos(user: JwtUserPayload): Promise<Video[]> {
-    return this.videoRepo.find({
-      where: { user: { login: user.login } },
-      relations: ['labAnimal', 'labAnimal.color'],
-    });
+    try {
+      return await this.videoRepo.find({
+        where: { user: { login: user.login } },
+        relations: ['labAnimal', 'labAnimal.color'],
+      });
+    } catch (err) {
+      console.error('Ошибка в getAllVideos:', err.message, { user });
+      throw err;
+    }
   }
 
   async getVideoById(id: number, user: JwtUserPayload): Promise<Video | null> {
-    const video = await this.videoRepo.findOne({
-      where: { id },
-      relations: ['labAnimal', 'labAnimal.color', 'videoExperiments', 'videoExperiments.experiment.status', 'user'],
-    });
+    try {
+      const video = await this.videoRepo.findOne({
+        where: { id },
+        relations: ['labAnimal', 'labAnimal.color', 'videoExperiments', 'videoExperiments.experiment.status', 'user'],
+      });
 
-    if (!video) throw new NotFoundException(`Видео с id=${id} не найдено`);
-    if (video.user?.login !== user.login) throw new ForbiddenException('Нет доступа к этому видео');
+      if (!video) throw new NotFoundException(`Видео с id=${id} не найдено`);
+      if (video.user?.login !== user.login) throw new ForbiddenException('Нет доступа');
 
-    return video;
+      return video;
+    } catch (err) {
+      console.error('Ошибка в getVideoById:', err.message, { id, user });
+      throw err;
+    }
   }
 
   async getVideoIdByFilename(filename: string): Promise<number | null> {
-    const video = await this.videoRepo.findOne({ where: { filename } });
-    return video?.id ?? null;
+    try {
+      const video = await this.videoRepo.findOne({ where: { filename } });
+      return video?.id ?? null;
+    } catch (err) {
+      console.error('Ошибка в getVideoIdByFilename:', err.message, { filename });
+      throw err;
+    }
   }
 
   async updateVideo(
@@ -83,44 +113,70 @@ export class VideoService {
     fileUrl: string | undefined,
     user: JwtUserPayload
   ): Promise<Video> {
-    const video = await this.getVideoById(id, user);
+    try {
+      const video = await this.getVideoById(id, user);
 
-    if (fileUrl) {
-      const oldPath = path.join(this.uploadDir, path.basename(video.filename));
-      try {
-        await fsPromises.unlink(oldPath);
-      } catch (e) {
-        console.warn(`Не удалось удалить старое видео: ${oldPath}`);
+      if (fileUrl) {
+        const oldPath = path.join(this.uploadDir, path.basename(video.filename));
+        try {
+          await fsPromises.unlink(oldPath);
+        } catch (e) {
+          console.warn(`Не удалось удалить старое видео: ${oldPath}`);
+        }
+
+        const fullNewPath = path.join(this.uploadDir, path.basename(fileUrl));
+        const { stdout } = await execFileAsync(ffprobeStatic.path, [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=nk=1:nw=1', fullNewPath
+        ]);
+        const durationSec = parseFloat(stdout);
+        video.durationMinutes = Math.floor(durationSec / 60);
+        video.durationSeconds = Math.floor(durationSec % 60);
+        video.filename = fileUrl;
       }
 
-      const fullNewPath = path.join(this.uploadDir, path.basename(fileUrl));
-      const { stdout } = await execFileAsync(ffprobeStatic.path, [
-        '-v', 'error', '-show_entries', 'format=duration',
-        '-of', 'default=nk=1:nw=1', fullNewPath
-      ]);
-      const durationSec = parseFloat(stdout);
-      video.durationMinutes = Math.floor(durationSec / 60);
-      video.durationSeconds = Math.floor(durationSec % 60);
-      video.filename = fileUrl;
+      if (dto.description !== undefined) video.description = dto.description;
+      if (dto.isExperimentAnimal !== undefined) video.isExperimentAnimal = dto.isExperimentAnimal;
+      // if (dto.labAnimalId !== undefined) {
+      //   video.labAnimal = dto.labAnimalId ? { id: dto.labAnimalId } : null;
+      // }
+
+      return await this.videoRepo.save(video);
+    } catch (err) {
+      console.error('Ошибка в updateVideo:', err.message, { id, dto, fileUrl, user });
+      throw err;
     }
-
-    if (dto.description !== undefined) video.description = dto.description;
-    if (dto.isExperimentAnimal !== undefined) video.isExperimentAnimal = dto.isExperimentAnimal;
-    // if (dto.labAnimalId !== undefined) video.labAnimal = dto.labAnimalId ? { id: dto.labAnimalId } : null;
-
-    return this.videoRepo.save(video);
   }
 
   async deleteVideo(id: number, user: JwtUserPayload): Promise<void> {
-    const video = await this.getVideoById(id, user);
-
-    const filePath = path.join(this.uploadDir, path.basename(video.filename));
     try {
-      await fsPromises.unlink(filePath);
-    } catch (e) {
-      console.warn(`Не удалось удалить файл видео: ${filePath}`);
-    }
+      const video = await this.getVideoById(id, user);
+      if (!video) throw new NotFoundException(`Видео с id=${id} не найдено`);
 
-    await this.videoRepo.delete(id);
+      const filePath = path.join(this.uploadDir, path.basename(video.filename));
+
+      if (video.videoExperiments.length > 0) {
+        const running = video.videoExperiments.some(
+          ve => ve.status?.statusName === 'Анализ'
+        );
+        if (!running) {
+          console.log(`Видео ${id} участвует в анализе эксперимента — оставлено`);
+          try {
+            await fsPromises.access(filePath);
+            await fsPromises.unlink(filePath);
+            console.log(`Файл удалён: ${filePath}`);
+          } catch (e) {
+            console.warn(`Файл не найден или не удалён: ${filePath}`);
+          }
+        }
+        else {
+          await this.videoRepo.delete(id);
+          console.log(`Видео ${id} удалено из базы`);
+        }
+      }
+    } catch (err) {
+      console.error('Ошибка в deleteVideo:', err.message, { id, user });
+      throw err;
+    }
   }
 }

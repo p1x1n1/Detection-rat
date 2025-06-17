@@ -550,7 +550,8 @@ def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
 #     boxes[:, [1, 3]] += y_off
 #     return res, boxes
 
-def process_video_for_metrics(video_path: str,
+def process_video_for_metrics(expId,
+                              video_path: str,
                               active_metrics: Dict[str, Any]) -> Dict[str, Any]:
     mask = cv2.imread(DEFAULT_MASK_PATH)
     mask_h, mask_w = mask.shape[:2]
@@ -605,7 +606,7 @@ def process_video_for_metrics(video_path: str,
 
     # собираем параметры
     base    = os.path.splitext(os.path.basename(video_path))[0]
-    out_fn  = f"{base}_result.mp4"
+    out_fn  = f"{base}_{expId}_result.mp4"
     out_path= os.path.join(os.path.dirname(video_path), out_fn)
     width   = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height  = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

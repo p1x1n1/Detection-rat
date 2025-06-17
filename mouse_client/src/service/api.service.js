@@ -1,49 +1,43 @@
 export class ApiService {
-	#apiPath = `http://localhost:7000`;//приватное поле #
+	#apiPath = `http://localhost:7000`;
 
-	#makeRequest(url, options = {}) {
-	const token = localStorage.getItem('token');
-
-	const headers = {
-		...(options.headers || {}),
-		...(token ? { Authorization: `Bearer ${token}` } : {}),
-	};
-
-	return fetch(this.#apiPath + url, {
-		...options,
-		headers
-	}).then(async (res) => {
-		const contentType = res.headers.get('content-type');
-
-		if (!res.ok) {
-			throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-		}
-
-		if (res.status === 204 || !contentType || !contentType.includes('application/json')) {
-			return null;
-		}
-
-		return res.json();
-	});
-}
-
-
-
-	get(url) {
-		console.log(this.#apiPath);
-		return this.#makeRequest(url, {
-			method: 'GET'
-		})
+	#getTokenHeader() {
+		const token = localStorage.getItem('token');
+		return token ? { Authorization: `Bearer ${token}` } : {};
 	}
 
-	/**
-  * GET-запрос, возвращающий Blob (для Excel, PDF и т.д.)
-  * @param {string} url путь относительный к this.#apiPath
-  * @returns {Promise<Blob>}
-  */
+	#makeRequest(url, options = {}) {
+		const headers = {
+			...(options.headers || {}),
+			...this.#getTokenHeader(),
+		};
+
+		return fetch(this.#apiPath + url, {
+			...options,
+			headers,
+		}).then(async (res) => {
+			const contentType = res.headers.get('content-type');
+
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+			}
+
+			if (res.status === 204 || !contentType?.includes('application/json')) {
+				return null;
+			}
+
+			return res.json();
+		});
+	}
+
+	async get(url) {
+		return this.#makeRequest(url, { method: 'GET' });
+	}
+
 	async getBlob(url) {
 		const res = await fetch(this.#apiPath + url, {
-			method: 'GET'
+			method: 'GET',
+			headers: this.#getTokenHeader(),
 		});
 		if (!res.ok) {
 			throw new Error(`Network response was not ok (${res.status})`);
@@ -51,14 +45,10 @@ export class ApiService {
 		return res.blob();
 	}
 
-	/**
-	 * GET-запрос, возвращающий ArrayBuffer (иногда удобнее)
-	 * @param {string} url
-	 * @returns {Promise<ArrayBuffer>}
-	 */
 	async getArrayBuffer(url) {
 		const res = await fetch(this.#apiPath + url, {
-			method: 'GET'
+			method: 'GET',
+			headers: this.#getTokenHeader(),
 		});
 		if (!res.ok) {
 			throw new Error(`Network response was not ok (${res.status})`);
@@ -66,63 +56,64 @@ export class ApiService {
 		return res.arrayBuffer();
 	}
 
-
-
-	delete(url) {
-		return this.#makeRequest(url, { method: 'DELETE' })
+	async delete(url) {
+		return this.#makeRequest(url, { method: 'DELETE' });
 	}
 
-	post(url, data) {
+	async post(url, data) {
 		return this.#makeRequest(url, {
-			headers: {//указывается что именно json
-				'Content-Type': 'application/json'
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify(data),
-			method: 'POST'
-		})
+		});
 	}
-	postFormData(url, formData) {
+
+	async postFormData(url, formData) {
 		return fetch(this.#apiPath + url, {
 			method: 'POST',
 			body: formData,
-		}).then(res => res.json());
+			headers: this.#getTokenHeader(),
+		}).then(res => {
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			return res.json();
+		});
 	}
 
-	put(url, data) {
+	async put(url, data) {
 		return this.#makeRequest(url, {
-			headers: {//указывается что именно json
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(data),
-			method: 'PUT'
-		})
-	}
-
-	patch(url, data) {
-		return this.#makeRequest(url, {
-			headers: {//указывается что именно json
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(data),
-			method: 'PATCH'
-		})
-	}
-
-	patchFormData(url, formData) {
-		return fetch(this.#apiPath + url, {
-			body: formData,
-			method: 'PATCH'
-		}).then(res => res.json());
-	}
-
-	async getUserInfo(token) {
-		const options = {
-			method: 'GET',
+			method: 'PUT',
 			headers: {
-				Authorization: `Bearer ${token}`, // Передаем токен в заголовке
+				'Content-Type': 'application/json',
 			},
-		};
-		return this.#makeRequest('/auth/user-info', options);
+			body: JSON.stringify(data),
+		});
+	}
+
+	async patch(url, data) {
+		return this.#makeRequest(url, {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(data),
+		});
+	}
+
+	async patchFormData(url, formData) {
+		return fetch(this.#apiPath + url, {
+			method: 'PATCH',
+			body: formData,
+			headers: this.#getTokenHeader(),
+		}).then(res => {
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			return res.json();
+		});
+	}
+
+	async getUserInfo() {
+		return this.#makeRequest('/auth/user-info', { method: 'GET' });
 	}
 }
 

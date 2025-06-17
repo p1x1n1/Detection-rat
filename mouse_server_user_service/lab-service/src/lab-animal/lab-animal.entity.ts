@@ -29,6 +29,6 @@ export class LabAnimal {
   @OneToMany(() => Video, (v) => v.labAnimal)
   videos: Video[];
 
-  @ManyToOne(() => User, (user) => user.labAnimals)
+  @ManyToOne(() => User, (user) => user.labAnimals, {onDelete: 'CASCADE'})
   user: User;
 }

@@ -106,18 +106,18 @@ const AnimalCard = ({ animal, onEdit, onDelete }) => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         cover={
-          imageUrl && (
-            <Image
-              src={imageUrl}
-              alt={animal.name}
-              style={{
-                height: "240px",
-                width: "100%",
-                borderRadius: "0.75rem",
-              }}
-              preview={false}
-            />
-          )
+          // imageUrl && (
+          <Image
+            src={imageUrl || '/rat-1.png'}
+            alt={animal.name}
+            style={{
+              height: "240px",
+              width: "100%",
+              borderRadius: "0.75rem",
+            }}
+            preview={false}
+          />
+          // )
         }
       >
         <Row gutter={[16, 16]}>

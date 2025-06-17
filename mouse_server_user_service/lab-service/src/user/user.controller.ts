@@ -30,11 +30,12 @@ export class UserController {
     @Body() dto: UpdateUserDto,
   ): Promise<User> {
     console.log ('image', file)
+    let imagePath;
     if (file) {
-      dto.imagePath = this.fileService.saveFile(file);
+      imagePath = this.fileService.saveFile(file);
     }
-    console.log('update user', dto.imagePath)
-    return this.userService.updateUser(login, dto);
+    console.log('update user', imagePath)
+    return this.userService.updateUser(login, dto, imagePath );
   }
 
   @Get()

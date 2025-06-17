@@ -11,11 +11,13 @@ import AddAnimalModal from '../Animal/AddAnimalModal';
 import '../css/UploadVideoForm.css';
 import { BASE_URL } from '../../App';
 import Title from 'antd/es/skeleton/Title';
+import { useNavigate } from 'react-router-dom';
+import { VIDEO_ROUTE } from '../../utils/const';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-const UploadVideoForm = ({ addVideo }) => {
+const UploadVideoForm = () => {
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState([]);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -24,6 +26,23 @@ const UploadVideoForm = ({ addVideo }) => {
   const [selectedLabAnimal, setSelectedLabAnimal] = useState(null);
   const [addAnimalVisible, setAddAnimalVisible] = useState(false);
   const [colors, setColors] = useState([]);
+  const navigate = useNavigate();
+
+  const addVideo = async (formData) => {
+    try {
+      await API_SERVICE.postFormData('/video', formData).then(() => {
+        message.success('Видео успешно добавлено!');
+        form.resetFields();
+        setFileList([]);
+        setSelectedLabAnimal(null);
+        message.success('Видео успешно загружено!');
+        navigate(VIDEO_ROUTE);
+      });
+    } catch (error) {
+      message.error('Ошибка при добавлении видео');
+      console.error(error);
+    }
+  };
 
   useEffect(() => {
     fetchAnimals();
@@ -80,10 +99,6 @@ const UploadVideoForm = ({ addVideo }) => {
     formData.append('video', fileList[0]);
 
     addVideo(formData);
-    form.resetFields();
-    setFileList([]);
-    setSelectedLabAnimal(null);
-    message.success('Видео успешно загружено!');
   };
 
   const uploadProps = {

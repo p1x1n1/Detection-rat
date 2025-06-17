@@ -1,8 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, PrimaryColumn, JoinColumn } from 'typeorm';
 import { Experiment } from '../experiment/experiment.entity';
 import { Video } from 'src/video/video.entity';
-import { Status } from 'src/status/status.entity';
 import { Metric } from 'src/metric/metric.entity';
+import { VideoExperiment } from 'src/video-experiment/video-experiment.entity';
 
 @Entity()
 export class MetricVideoExperiment {
@@ -10,7 +10,7 @@ export class MetricVideoExperiment {
     experimentId: number;
 
     @PrimaryColumn('int')
-    videoId: number;
+    videoExperimentId: number;
 
     @PrimaryColumn({ type: 'int' })
     metricId: number;
@@ -22,9 +22,9 @@ export class MetricVideoExperiment {
     @JoinColumn({ name: 'experimentId' })
     experiment: Experiment;
 
-    @ManyToOne(() => Video, v => v.metricVideoExperiments)
-    @JoinColumn({ name: 'videoId' })
-    video: Video;
+    @ManyToOne(() => VideoExperiment, v => v.metricVideoExperiments)
+    @JoinColumn({ name: 'videoExperimentId' })
+    videoExperiment: VideoExperiment;
 
     @ManyToOne(() => Metric, m => m.metricVideoExperiments)
     @JoinColumn({ name: 'metricId' })

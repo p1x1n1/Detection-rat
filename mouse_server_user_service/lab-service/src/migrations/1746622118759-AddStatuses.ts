@@ -6,6 +6,7 @@ export class AddStatuses1746622118759 implements MigrationInterface {
         const statuses = [
             'Создан',
             'В очереди',
+            'Анализ прекращен',
             'Участвует в эксперименте',
             'В процессе',
             'Извлечение кадров',
@@ -37,6 +38,7 @@ export class AddStatuses1746622118759 implements MigrationInterface {
             WHERE "statusName" IN (
               'Создан',
               'В очереди',
+              'Анализ прекращен',
               'Участвует в эксперименте',
               'В процессе',
               'Извлечение кадров',

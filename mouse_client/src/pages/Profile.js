@@ -29,6 +29,7 @@ import {
 import dayjs from "dayjs";
 import { API_SERVICE } from "../service/api.service";
 import { BASE_URL } from "../App";
+import { observer } from "mobx-react-lite";
 
 const { Title, Text } = Typography;
 
@@ -65,6 +66,7 @@ const ProfilePage = () => {
 
 
     useEffect(() => {
+        user.checkSession();
         if (u) {
             form.setFieldsValue({
                 email: u.email,
@@ -77,6 +79,8 @@ const ProfilePage = () => {
             setFileList([]);
             setSelectedFile(null);
             fetchUserExperiments();
+        } else {
+            window.location.reload()
         }
     }, [u, form]);
 
@@ -112,14 +116,15 @@ const ProfilePage = () => {
             }
 
             // если нужно — можно явно прокинуть headers
-            const { data } = await API_SERVICE.patchFormData(
+            const data = await API_SERVICE.patchFormData(
                 `/users/${u.login}`,
                 fd
             );
-
+            
             user.setUser(data);
             message.success("Профиль сохранён");
             setEditMode(false);
+            window.location.reload()
         } catch (err) {
             console.error(err);
             message.error("Не удалось сохранить профиль");
@@ -128,14 +133,14 @@ const ProfilePage = () => {
 
 
     const handleImageChange = (info) => {
-        const file = info.file.originFileObj;
+        const file = info.file;
         if (file) {
             setSelectedFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => setPreviewImage(reader.result);
-            reader.readAsDataURL(file);
+            // const reader = new FileReader();
+            // reader.onloadend = () => setPreviewImage(reader.result);
+            // reader.readAsDataURL(file);
         }
-        setFileList(info.fileList.slice(-1));
+        setFileList(info.fileList);
     };
 
     if (!u) {
@@ -211,17 +216,6 @@ const ProfilePage = () => {
                                             Выбрать файл
                                         </Button>
                                     </Upload>
-                                    {previewImage && (
-                                        <img
-                                            src={previewImage}
-                                            alt="Предпросмотр аватара"
-                                            style={{
-                                                marginTop: 12,
-                                                maxHeight: 128,
-                                                borderRadius: "50%",
-                                            }}
-                                        />
-                                    )}
                                 </Form.Item>
                             </Form>
                         ) : (
@@ -303,4 +297,4 @@ const ProfilePage = () => {
     );
 };
 
-export default ProfilePage;
+export default observer(ProfilePage);
