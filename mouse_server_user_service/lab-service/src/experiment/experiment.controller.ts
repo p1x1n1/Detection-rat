@@ -59,18 +59,18 @@ export class ExperimentController {
     ws.addRow(header);
 
     for (const ve of videoExps) {
-      const isExp = ve.video.isExperimentAnimal === true;
+      const isExp = ve.isExperimentAnimal === true;
       const type = isExp ? 'Экспериментальная' : 'Контрольная';
 
       const row = [
         type,
-        ve.video.name,
-        ve.video.labAnimal?.name || '',
-        ve.video.labAnimal?.weight ?? '',
-        ve.video.labAnimal ? (ve.video.labAnimal.sex ? 'Самец ♂' : 'Самка ♀') : '',
+        ve.video?.name,
+        ve.video?.labAnimal?.name || '',
+        ve.video?.labAnimal?.weight ?? '',
+        ve.video?.labAnimal ? (ve.video.labAnimal.sex ? 'Самец' : 'Самка') : '',
         ...metricNames.map(name => {
           const mv = metricVideoExps.find(
-            m => m.videoExperimentId === ve.videoId && m.metric.metricName === name
+            m => m.videoExperiment.videoId === ve.videoId && m.metric.metricName === name
           );
           return mv ? mv.value : 0;
         }),
@@ -122,14 +122,14 @@ export class ExperimentController {
     return this.experimentService.analyze(id, user);
   }
 
-  @Get('analyze/:id')
+  @Get('stopAnalyze/:id')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Запустить анализ видео' })
+  @ApiOperation({ summary: 'Прекратить анализ видео' })
   stopAnalyze(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: JwtUserPayload
   ) {
-    return this.experimentService.analyze(id, user);
+    return this.experimentService.stopAnalyze(id, user);
   }
 
   @EventPattern('video.analyze.completed')

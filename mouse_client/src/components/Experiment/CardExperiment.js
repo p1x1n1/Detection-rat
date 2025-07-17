@@ -52,7 +52,7 @@ const CardExperiment = ({ experiment, onClick, onRefresh }) => {
                                 {ve.status?.statusName || "Нет статуса"}
                             </Tag>
 
-                            {ve.video?.name || `Видео #${ve.videoId}`}
+                            {ve.video?.name || `Видео ${ve.videoId? ve.video.name : ''}`}
                             {ve.video?.labAnimal && (
                                 <ul>
                                     <li>

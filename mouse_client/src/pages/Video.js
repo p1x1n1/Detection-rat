@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Button,
   Col,
@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { VIDEO_REPORT_ROUTE } from '../utils/const';
 import { API_SERVICE } from '../service/api.service';
 import CardVideo from '../components/Video/CardVideo';
+import { Context } from "../index";
 
 const { Search } = Input;
 const { Option } = Select;
@@ -21,6 +22,8 @@ const { Option } = Select;
 const VIDEOS_PER_PAGE = 8;
 
 const Video = () => {
+  const { user } = useContext(Context);
+  const u = user.user;
   const [videos, setVideos] = useState([]);
   const [filteredVideos, setFilteredVideos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +41,7 @@ const Video = () => {
       } catch (error) {
         message.error('Не удалось загрузить список видео');
         console.error(error);
+        window.location.reload()
         setVideos([]);
         setFilteredVideos([]);
       } finally {

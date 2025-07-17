@@ -34,6 +34,7 @@ const ExperimentReport = () => {
   const [columns, setColumns] = useState([]);
   const [dataSource, setDataSource] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exp, setExp] = useState({});
 
   const [columnModalVisible, setColumnModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,6 +45,7 @@ const ExperimentReport = () => {
     setLoading(true);
     API_SERVICE.get(`/experiment/${id}`)
       .then(exp => {
+        setExp(exp);
         const videoExps = exp.videoExperiments || [];
         const metricVideoExps = exp.metricVideoExperiments || [];
 
@@ -64,24 +66,24 @@ const ExperimentReport = () => {
 
         // 3) Строки по каждому видео
         const rows = videoExps.map(ve => {
-          const { video, videoId } = ve;
-          const isExp = video.labAnimal?.isExperimentAnimal === true;
+          const { video, videoId, videoExperimentId } = ve;
+          const isExp = ve.isExperimentAnimal === true;
           const row = {
             key: videoId,
             type: isExp ? "Экспериментальная" : "Контрольная",
             // доп. поля (вычислены сразу, но покажутся только если выбраны)
-            videoName: video.name,
-            animalName: video.labAnimal?.name || "-",
-            animalWeight: video.labAnimal?.weight != null
-              ? `${video.labAnimal.weight} г`
+            videoName: video?.name,
+            animalName: video?.labAnimal?.name || "-",
+            animalWeight: video?.labAnimal?.weight != null
+              ? `${video?.labAnimal.weight} г`
               : "-",
-            animalSex: video.labAnimal
-              ? (video.labAnimal.sex ? "♂" : "♀")
+            animalSex: video?.labAnimal
+              ? (video?.labAnimal.sex ? "♂" : "♀")
               : "-",
           };
           metricNames.forEach(name => {
             const mv = metricVideoExps.find(
-              x => x.videoId === videoId && x.metric.metricName === name
+              x => x.videoExperiment.videoExperimentId === videoExperimentId && x.metric.metricName === name
             );
             row[name] = mv ? mv.value : 0;
           });
@@ -130,7 +132,7 @@ const ExperimentReport = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={2}>Отчёт по эксперименту #{id}</Title>
+      <Title level={2}>Отчёт по эксперименту: {exp?.name}</Title>
 
       <Space style={{ float: "right", marginBottom: 16 }}>
         <Button
@@ -139,7 +141,6 @@ const ExperimentReport = () => {
         >
           Добавить колонку
         </Button>
-        {/* ↓ НОВАЯ КНОПКА */}
         <Button
           className="custom-btn custom-btn-primary"
           onClick={downloadExcel}

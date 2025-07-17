@@ -19,6 +19,7 @@ import { BASE_URL, getStatusColorVar } from "../../App";
 import "../../pages/css/Experiment.css";
 import { useNavigate } from "react-router-dom";
 import ButtonExperiment from "./ButtonExperiment";
+import VideoDownloadButton from "../Button/VideoDownloadButton";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -32,17 +33,19 @@ const CardExperimentDetailed = ({ experiment, onRefresh }) => {
   const videos = experiment.videoExperiments || [];
   const videoExp = videos[page - 1] || {};
 
+
   const {
     video,
     filenameResult,
     status: vidStatus,
     videoId,
+    videoExperimentId
   } = videoExp;
 
   return (
     <Card className="experiment-card">
       {/* Основные поля с подписями */}
-      {console.log(experiment)}
+      {console.log("cardExperimentDetailed", experiment)}
       <Row gutter={[8, 8]}>
         <Col span={24}>
           <Title level={3}>{experiment.name}</Title>
@@ -78,10 +81,10 @@ const CardExperimentDetailed = ({ experiment, onRefresh }) => {
         Видео {page} из {videos.length}
       </Title>
 
-      {video && (
+      {videoExp && (
         <Row gutter={16}>
           {/* левая колонка: оригинальное видео */}
-          <Col xs={24} sm={24} md={12}>
+          {video && <Col xs={24} sm={24} md={12}>
             <Tag
               className="status-tag"
               style={{ backgroundColor: getStatusColorVar(experiment.status?.statusName) }}
@@ -90,15 +93,15 @@ const CardExperimentDetailed = ({ experiment, onRefresh }) => {
             </Tag>
             {/* {statusTag(vidStatus?.title)} */}
             <CardVideo video={video} key={video?.id || videoId} isBigVideo={true} />
-          </Col>
+          </Col>}
 
-          {/* правая колонка: результаткарточки метрик */}
-          <Col xs={24} sm={24} md={12}>
+          {/* правая колонка: результат карточки метрик */}
+          <Col xs={video ? 24 : 48} sm={video ? 24 : 48} md={video ? 12 : 48}>
             {
               vidStatus?.statusName === 'Успешно завершено' ? (
                 <Row gutter={[0, 16]}>
                   {/* 1) результат */}
-                  <Col span={24}>
+                  <Col span={video ? 24 : 12}>
                     {filenameResult ? (
                       <Card title="Результат анализа" className="card">
                         <video
@@ -107,65 +110,37 @@ const CardExperimentDetailed = ({ experiment, onRefresh }) => {
                           src={`${BASE_URL}${filenameResult}`}
                           style={{ marginBottom: 12 }}
                         />
-                        <Button type="custom-btn custom-btn-success"
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`${BASE_URL}${filenameResult}`);
-                              if (!response.ok) throw new Error('Ошибка при скачивании');
-
-                              const blob = await response.blob();
-                              const url = window.URL.createObjectURL(blob);
-
-                              // 🧠 Формируем имя файла
-                              const safeExpName = (experiment.name || 'experiment').replace(/\s+/g, '_');
-                              const safeVideoName = (video?.name + "-result" || "video-result").replace(/\s+/g, '_');
-                              const fileExt = filenameResult.split('.').pop() || 'mp4';
-
-                              const fileName = `${safeExpName}_${safeVideoName}.${fileExt}`;
-
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = fileName;
-                              a.style.display = 'none';
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              window.URL.revokeObjectURL(url);
-                            } catch (error) {
-                              message.error('Не удалось скачать видео');
-                              console.error(error);
-                            }
-                          }}
-                        >
-                          Скачать результат анализа
-                        </Button>
+                        <VideoDownloadButton
+                          buttonName={"Скачать результат анализа"}
+                          filenameResult={filenameResult}
+                          videoName={video?.name}
+                          experimentName={experiment?.name}
+                        ></VideoDownloadButton>
                       </Card>
                     ) : (
                       <Text type="secondary">Результат отсутствует</Text>
                     )}
                   </Col>
-
-                  {/* 2) карточки метрик */}
-                  {/* 2) карточки метрик */}
-                  <Col span={24}>
+                  {/* Показатели */}
+                  <Col span={video ? 24 : 12}>
                     <Card title="Показатели этого видео:" className="card">
                       <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
                         {mves
-                          .filter(mv => mv.videoId === videoId)
+                          .filter(mv => mv.videoExperiment.videoExperimentId === videoExperimentId)
                           .slice(0, showAllMetrics ? undefined : 2)
                           .map((mv) => (
-                            <Col xs={24} key={`${mv.videoId}-${mv.metric.id}`}>
+                            <Col xs={24} key={`${mv.videoExperimentId}-${mv.metric.id}`}>
                               <ItemCardMetric metricItem={mv} />
                             </Col>
                           ))}
                       </Row>
 
-                      {mves.filter(mv => mv.videoId === videoId).length > 2 && (
+                      {mves.filter(mv => mv.videoExperiment.videoExperimentId === videoExperimentId).length > 2 && (
                         <Button
                           // type="link"
                           className="custom-btn-secondary"
                           onClick={() => setShowAllMetrics(prev => !prev)}
-                          // style={{ marginTop: 8, paddingLeft: 0 }}
+                        // style={{ marginTop: 8, paddingLeft: 0 }}
                         >
                           {showAllMetrics ? "Скрыть лишние показатели" : "Показать все показатели"}
                         </Button>

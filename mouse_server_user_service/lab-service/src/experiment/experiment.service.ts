@@ -103,6 +103,7 @@ export class ExperimentService {
         'metricExperiments.metric',
         'metricVideoExperiments',
         'metricVideoExperiments.metric',
+        'metricVideoExperiments.videoExperiment',
       ],
     });
 
@@ -187,7 +188,7 @@ export class ExperimentService {
     const videoId = await this.videoService.getVideoIdByFilename(fullFilename);
     if (!videoId) throw new Error(`Video not found: ${fullFilename}`);
 
-    const errorStatus = await this.statusRepository.findOneBy({ statusName: 'Ошибка во время выполнения анализа' });
+    const errorStatus = await this.statusRepository.findOneBy({ statusName: 'Ошибка во время выполнения' });
     await this.videoExperimentRepository.update(
       { experiment: { id: data.expId }, video: { id: videoId } },
       { status: errorStatus }
@@ -201,7 +202,8 @@ export class ExperimentService {
     const fullFilename = `/static/videos/${rawFilename}`;
 
     const parsedName = path.parse(rawFilename);
-    const resultFilename = `${parsedName.name}_${expId}_result${parsedName.ext}`;
+    // const resultFilename = `${parsedName.name}_${expId}_result${parsedName.ext}`;
+    const resultFilename = `${parsedName.name}_${expId}_result.mp4`;
     const fullFilenameResult = `/static/videos/${resultFilename}`;
 
     const videoId = await this.videoService.getVideoIdByFilename(fullFilename);

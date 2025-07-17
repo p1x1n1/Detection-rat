@@ -160,7 +160,6 @@ export class VideoService {
           ve => ve.status?.statusName === 'Анализ'
         );
         if (!running) {
-          console.log(`Видео ${id} участвует в анализе эксперимента — оставлено`);
           try {
             await fsPromises.access(filePath);
             await fsPromises.unlink(filePath);
@@ -168,11 +167,13 @@ export class VideoService {
           } catch (e) {
             console.warn(`Файл не найден или не удалён: ${filePath}`);
           }
-        }
-        else {
           await this.videoRepo.delete(id);
           console.log(`Видео ${id} удалено из базы`);
+        } else {
+          console.log(`Видео ${id} участвует в анализе эксперимента — оставлено`);
         }
+      } else {
+        await this.videoRepo.delete(id);
       }
     } catch (err) {
       console.error('Ошибка в deleteVideo:', err.message, { id, user });

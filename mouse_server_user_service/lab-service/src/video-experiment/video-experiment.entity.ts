@@ -12,7 +12,7 @@ export class VideoExperiment {
   @Column('int')
   experimentId: number;
 
-  @Column('int')
+  @Column('int', { nullable: true })
   videoId: number;
 
   @Column({ nullable: true })
@@ -28,7 +28,7 @@ export class VideoExperiment {
   @JoinColumn({ name: 'experimentId' })
   experiment: Experiment;
 
-  @ManyToOne(() => Video, v => v.videoExperiments)
+  @ManyToOne(() => Video, v => v.videoExperiments, { nullable: true, onDelete: 'SET NULL', })
   @JoinColumn({ name: 'videoId' })
   video: Video;
 

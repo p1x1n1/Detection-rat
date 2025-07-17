@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { VideoExperiment } from './video-experiment.entity';
 import { CreateVideoExperimentDto } from './dto/create-video-experiment.dto';
 import { Status } from 'src/status/status.entity';
+import { Video } from 'src/video/video.entity';
 
 @Injectable()
 export class VideoExperimentService {
@@ -13,10 +14,15 @@ export class VideoExperimentService {
     private readonly repo: Repository<VideoExperiment>,
     @InjectRepository(Status)
     private readonly statusRepo: Repository<Status>,
+    @InjectRepository(Video)
+    private readonly videoRepo: Repository<Video>,
   ) {}
 
   async create(dto: CreateVideoExperimentDto): Promise<VideoExperiment> {
-    const ve = this.repo.create(dto);
+    const video = await this.videoRepo.findOne({where: {id: dto.videoId}});
+    const ve = this.repo.create({...dto,
+      isExperimentAnimal: video.isExperimentAnimal,
+    });
     return this.repo.save(ve);
   }
 

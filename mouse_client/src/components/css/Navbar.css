@@ -11,12 +11,22 @@
 }
 
 .navbar__logo {
-  position: absolute;
+  /* position: absolute; */
+  display: flex;
   left: var(--spacing);
   /* font-family: var(--font-heading); */
   font-size: 2rem;
   color: white;
   cursor: pointer;
+}
+
+.navbar__logo_title_container {
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar__logo_title_user_guide {
+  font-size: 1rem;
 }
 
 .navbar__btn {
@@ -84,4 +94,11 @@
 .navbar__icon-img {
   width: 20px;
   height: 20px;
+}
+
+.navbar__icon-img-logo {
+  width: 40px;
+  height: 40px;
+  margin: auto;
+  margin-left: 2px;
 }

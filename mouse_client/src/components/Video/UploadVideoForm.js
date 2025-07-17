@@ -35,7 +35,7 @@ const UploadVideoForm = () => {
         form.resetFields();
         setFileList([]);
         setSelectedLabAnimal(null);
-        message.success('Видео успешно загружено!');
+        // message.success('Видео успешно загружено!');
         navigate(VIDEO_ROUTE);
       });
     } catch (error) {

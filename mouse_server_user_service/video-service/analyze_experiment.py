@@ -11,7 +11,7 @@ import imageio_ffmpeg
 import subprocess
 
 # === Настройка модели и цветов для классов ===
-model_main = YOLO("models/best17.pt", verbose=False)
+model_main = YOLO("models/best24.pt", verbose=False)
 COLOR_MAP_MAIN = {
     "mouse": (128, 0, 128),
     "hole_peek": (255, 165, 0),
@@ -19,10 +19,9 @@ COLOR_MAP_MAIN = {
     "grooming": (255, 0, 255),
 }
 # модель для дефекаций (и, по желанию, ROI-классов)
-model_def = YOLO("models/best18.pt", verbose=False)
+model_def = YOLO("models/best24.pt", verbose=False)
 COLOR_MAP_DEF = {
     "defecation": (0, 128, 0),
-    # сюда же можно добавить класс "roi", если он есть в best18
 }
 
 DEFAULT_MASK_PATH = "mask.png"
@@ -88,11 +87,6 @@ def get_roi_auto(frame: np.ndarray,
                  conf_thresh: float = 0.5,
                  min_area: float = 1000.0
                  ) -> tuple[int, int, int, int] | None:
-    """
-    Предсказывает на кадре боксы моделью model_def,
-    фильтрует по классу 'roi', выбирает самый большой по площади.
-    Возвращает (x, y, w, h) или None.
-    """
     rd = model_def.predict(frame, conf=conf_thresh, verbose=False)[0]
     candidates = []
     for i, cls in enumerate(rd.boxes.cls):
@@ -108,7 +102,6 @@ def get_roi_auto(frame: np.ndarray,
                 })
     if not candidates:
         return None
-    # выбираем по максимальному коэффициенту доверия
     best = max(candidates, key=lambda c: c["conf"])
     return best["bbox"]
 
@@ -123,7 +116,6 @@ def preprocess_edges(img: np.ndarray) -> np.ndarray:
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blur, 50, 150)
     return cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
-
 
 def align_mask_to_roi(mask: np.ndarray, roi_img: np.ndarray) -> np.ndarray:
     me = preprocess_edges(mask)
@@ -142,9 +134,9 @@ def align_mask_to_roi(mask: np.ndarray, roi_img: np.ndarray) -> np.ndarray:
 
 
 def transform_annotations(elems: Dict[str, Any], M: np.ndarray) -> Dict[str, Any]:
-    a, b, tx = M[0];
+    a, b, tx = M[0]
     c, d, ty = M[1]
-    sx = np.hypot(a, c);
+    sx = np.hypot(a, c)
     sy = np.hypot(b, d)
     scale = (sx + sy) / 2
     out = copy.deepcopy(elems)
@@ -172,9 +164,9 @@ def transform_annotations(elems: Dict[str, Any], M: np.ndarray) -> Dict[str, Any
         lines = []
         for L in elems["lines"].get(kind, []):
             x1, y1, x2, y2 = L["x1"], L["y1"], L["x2"], L["y2"]
-            X1 = a * x1 + b * y1 + tx;
+            X1 = a * x1 + b * y1 + tx
             Y1 = c * x1 + d * y1 + ty
-            X2 = a * x2 + b * y2 + tx;
+            X2 = a * x2 + b * y2 + tx
             Y2 = c * x2 + d * y2 + ty
             lines.append({"x1": float(X1), "y1": float(Y1),
                           "x2": float(X2), "y2": float(Y2)})
@@ -183,109 +175,108 @@ def transform_annotations(elems: Dict[str, Any], M: np.ndarray) -> Dict[str, Any
     return out
 
 
-
 def track_mouse_movement(ctx: Dict[str, Any], res, roi) -> bool:
     """
-    Теперь возвращаем позицию мыши в координатах ROI:
-    roi = (x_off, y_off, w_roi, h_roi).
+    Теперь содержит все координаты бокса [x1, y1, x2, y2]
+    (относительно ROI), а не только центр. Для вычислений центра
+    используем эти четыре числа в анализаторах.
+    """
+    """
+    Запоминаем:
+      - roi: (x_off, y_off, w, h)
+      - mouse_position: [x1_rel,y1_rel,x2_rel,y2_rel]
+      - mouse_position_absolute: [x1_abs,y1_abs,x2_abs,y2_abs]
+      - mouse_delta: (dx,dy) смещение центра бокса относительно ROI
     """
     global mouse_last_position
     x_off, y_off, _, _ = roi
-    pos = None
-    # res.boxes.xyxy — глобальные координаты боксов
+    bbox_rel = None
+    bbox_abs = None
+
     for i, cls in enumerate(res.boxes.cls):
         if model_main.names[int(cls)].lower() == "mouse":
             x1, y1, x2, y2 = map(float, res.boxes.xyxy[i])
-            # центр бокса переводим в ROI-координаты
-            cx = (x1 + x2) / 2 - x_off
-            cy = (y1 + y2) / 2 - y_off
-            pos = (cx, cy)
+            bbox_abs = [x1, y1, x2, y2]
+            bbox_rel = [x1 - x_off, y1 - y_off, x2 - x_off, y2 - y_off]
             break
 
-    ctx["mouse_position"] = pos
-    if pos is None:
+    ctx["roi"] = {"x_off": x_off, "y_off": y_off, "w": roi[2], "h": roi[3]}
+    ctx["mouse_position"] = bbox_rel
+    ctx["mouse_position_absolute"] = bbox_abs
+
+    if bbox_rel is None:
+        ctx["mouse_delta"] = None
         return False
 
+    # Центр бокса
+    cx = (bbox_abs[0] + bbox_abs[2]) / 2
+    cy = (bbox_abs[1] + bbox_abs[3]) / 2
+
+    # смещение центра относительно ROI
+    dx = cx - (x_off + ctx["roi"]["w"] / 2)
+    dy = cy - (y_off + ctx["roi"]["h"] / 2)
+    ctx["mouse_delta"] = {"dx": dx, "dy": dy}
+
+    # трекинг перемещения
     if mouse_last_position is None:
-        mouse_last_position = pos
+        mouse_last_position = (cx, cy)
         return False
 
-    moved = np.linalg.norm(np.array(pos) - np.array(mouse_last_position)) > mouse_moved_threshold
+    prev_cx, prev_cy = mouse_last_position
+    moved = math.hypot(cx - prev_cx, cy - prev_cy) > mouse_moved_threshold
     if moved:
-        mouse_last_position = pos
+        mouse_last_position = (cx, cy)
     return moved
 
+# === Анализаторы ===
+# В каждом анализаторе, где использовался ctx["mouse_position"] как (x, y),
+# теперь вычисляем центр из bbox = [x1,y1,x2,y2].
 
-# === Анализаторы (все с одинаковой сигнатурой) ===
 def analyze_rearing(frame, res, ctx):
-    """
-    Считаем rearing, только если:
-     - класс «rearing» найден,
-     - прошло >= COULDOWN кадров с последнего rearing,
-     - мышь сильно сместилась (>= SHIFT_THRESHOLD) с той позиции, где это считалось в прошлый раз.
-    """
-    pos = ctx.get("mouse_position")
-    # наращиваем кулдаун (лишь до COULDOWN)
+    bbox = ctx.get("mouse_position_absolute")
     cd = ctx.get("rearing_cooldown", COULDOWN)
     if cd < COULDOWN:
         ctx["rearing_cooldown"] = cd + 1
-
-    # проверяем, есть ли «rearing» в текущем кадре
     found = any(model_main.names[int(cls)].lower() == "rearing" for cls in res.boxes.cls)
-    if not found:
+    if not found or ctx["rearing_cooldown"] < COULDOWN or bbox is None:
         return
 
-    # достаточный кулдаун?
-    if ctx["rearing_cooldown"] < COULDOWN:
-        return
-
-    # проверяем, что мышь есть и был большой сдвиг
-    if pos is not None:
-        last = ctx.get("last_rearing_pos")
-        if last is None or math.hypot(pos[0] - last[0], pos[1] - last[1]) >= SHIFT_THRESHOLD:
-            # считаем событие
-            ctx["rearing"] = ctx.get("rearing", 0) + 1
-            # сбрасываем кулдаун и обновляем позицию
-            ctx["rearing_cooldown"] = 0
-            ctx["last_rearing_pos"] = pos
+    cx = (bbox[0] + bbox[2]) / 2
+    cy = (bbox[1] + bbox[3]) / 2
+    last = ctx.get("last_rearing_pos")
+    if last is None or math.hypot(cx - last[0], cy - last[1]) >= SHIFT_THRESHOLD:
+        ctx["rearing"] = ctx.get("rearing", 0) + 1
+        ctx["rearing_cooldown"] = 0
+        ctx["last_rearing_pos"] = (cx, cy)
 
 
 def analyze_grooming_count(frame, res, ctx):
-    """
-    Аналогично для grooming:
-     - найден «grooming»,
-     - прошло >= COULDOWN кадров,
-     - сдвиг >= SHIFT_THRESHOLD.
-    """
-    pos = ctx.get("mouse_position")
-    # кулдаун
+    bbox = ctx.get("mouse_position_absolute")
     cd = ctx.get("grooming_cooldown", COULDOWN)
     if cd < COULDOWN:
         ctx["grooming_cooldown"] = cd + 1
-
-    # ищем «grooming»
     found = any(model_main.names[int(cls)].lower() == "grooming" for cls in res.boxes.cls)
-    if not found:
+    if not found or ctx["grooming_cooldown"] < COULDOWN or bbox is None:
         return
 
-    if ctx["grooming_cooldown"] < COULDOWN:
-        return
-
-    if pos is not None:
-        last = ctx.get("last_grooming_pos")
-        if last is None or math.hypot(pos[0] - last[0], pos[1] - last[1]) >= SHIFT_THRESHOLD:
-            ctx["grooming_count"] = ctx.get("grooming_count", 0) + 1
-            ctx["grooming_cooldown"] = 0
-            ctx["last_grooming_pos"] = pos
+    cx = (bbox[0] + bbox[2]) / 2
+    cy = (bbox[1] + bbox[3]) / 2
+    last = ctx.get("last_grooming_pos")
+    if last is None or math.hypot(cx - last[0], cy - last[1]) >= SHIFT_THRESHOLD:
+        ctx["grooming_count"] = ctx.get("grooming_count", 0) + 1
+        ctx["grooming_cooldown"] = 0
+        ctx["last_grooming_pos"] = (cx, cy)
 
 
 def analyze_hole_peek(frame, res, ctx):
-    pos = ctx.get("mouse_position")
-    if pos is None:
+    bbox = ctx.get("mouse_position_absolute")
+    if bbox is None:
         ctx["prev_hole_peek"] = False
         return
+    cx = (bbox[0] + bbox[2]) / 2
+    cy = (bbox[1] + bbox[3]) / 2
     inside = any(
-        (pos[0] - h["x"]) ** 2 + (pos[1] - h["y"]) ** 2 <= (h["r"] + HOLE_EPSILON) ** 2
+        (cx - h["x"]) ** 2 + (cy - h["y"]) ** 2 <= (h["r"] + HOLE_EPSILON) ** 2
         for h in ctx["holes_list"]
     )
     if inside and not ctx.get("prev_hole_peek", False):
@@ -295,41 +286,121 @@ def analyze_hole_peek(frame, res, ctx):
         ctx["prev_hole_peek"] = False
 
 
+from typing import Dict, Any
+import math
+
+
 def _analyze_line_crossing(ctx: Dict[str, Any],
-                           lines: list,
+                           lines: list[dict],
                            prev_flag_key: str,
                            metric_key: str):
     """
-    Общая функция: если мышь пересекает любую из линий `lines` и ранее
-    не находилась на линии (prev_flag_key=False), то увеличиваем счётчик
-    metric_key и ставим флаг prev_flag_key=True.
-    Когда мышь уходит с любой линии (расстояние > LINE_EPSILON ко всем), 
-    флаг prev_flag_key сбрасывается, и следующий заход снова посчитается.
+    Проверяет, пересекает ли любая из линий в `lines` AABB мышиного бокса
+    ctx['mouse_position'] = [xmin, ymin, xmax, ymax], и только
+    если длина пересечения внутри AABB ≥ (max(width,height)/3), то
+    считаем пересечение и увеличиваем ctx[metric_key] при переходе
+    флага ctx[prev_flag_key] from False→True.
     """
-    pos = ctx.get("mouse_position")
-    if pos is None:
-        # мышь не обнаружена — сбросим флаг, чтобы следующий захват посчитался
+    bbox = ctx.get("mouse_position_absolute")  # [xmin, ymin, xmax, ymax]
+    if bbox is None:
         ctx[prev_flag_key] = False
         return
 
-    x, y = pos
+    xmin, ymin, xmax, ymax = bbox
+    width = xmax - xmin
+    height = ymax - ymin
+    # порог: треть от большей стороны
+    threshold = max(width, height) / 3.0
+
+    # вспомогательные функции
+    def point_in_rect(x, y):
+        return xmin <= x <= xmax and ymin <= y <= ymax
+
+    def orient(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    def on_segment(a, b, c):
+        return (min(a[0], b[0]) <= c[0] <= max(a[0], b[0]) and
+                min(a[1], b[1]) <= c[1] <= max(a[1], b[1]))
+
+    def segs_intersect(p1, p2, q1, q2):
+        o1 = orient(p1, p2, q1)
+        o2 = orient(p1, p2, q2)
+        o3 = orient(q1, q2, p1)
+        o4 = orient(q1, q2, p2)
+        if o1 * o2 < 0 and o3 * o4 < 0:
+            return True
+        # коллинеарные граничные
+        if o1 == 0 and on_segment(p1, p2, q1): return True
+        if o2 == 0 and on_segment(p1, p2, q2): return True
+        if o3 == 0 and on_segment(q1, q2, p1): return True
+        if o4 == 0 and on_segment(q1, q2, p2): return True
+        return False
+
+    def line_intersection(p1, p2, q1, q2):
+        # возвращает точку пересечения бесконечных прямых, либо None
+        x1, y1 = p1;
+        x2, y2 = p2
+        x3, y3 = q1;
+        x4, y4 = q2
+        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+        if abs(denom) < 1e-6:
+            return None
+        px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom
+        py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom
+        return (px, py)
+
+    # грани AABB
+    rect_edges = [
+        ((xmin, ymin), (xmax, ymin)),
+        ((xmax, ymin), (xmax, ymax)),
+        ((xmax, ymax), (xmin, ymax)),
+        ((xmin, ymax), (xmin, ymin)),
+    ]
+
     crossed = False
     for L in lines:
-        x1, y1, x2, y2 = L["x1"], L["y1"], L["x2"], L["y2"]
-        # проекция точки на отрезок:
-        vx, vy = x2 - x1, y2 - y1
-        wx, wy = x - x1, y - y1
-        norm2 = vx * vx + vy * vy
-        if norm2 > 0:
-            t = max(0.0, min(1.0, (wx * vx + wy * vy) / norm2))
-            px, py = x1 + t * vx, y1 + t * vy
-        else:
-            px, py = x1, y1
-        # расстояние от точки до отрезка
-        if math.hypot(x - px, y - py) <= LINE_EPSILON:
-            crossed = True
+        p1 = (L["x1"], L["y1"])
+        p2 = (L["x2"], L["y2"])
+
+        # собираем все точки пересечения с AABB
+        ips = []
+        # концы внутри?
+        if point_in_rect(*p1): ips.append(p1)
+        if point_in_rect(*p2): ips.append(p2)
+        # пересечение с гранями
+        for q1, q2 in rect_edges:
+            if segs_intersect(p1, p2, q1, q2):
+                ip = line_intersection(p1, p2, q1, q2)
+                if ip is not None:
+                    ips.append(ip)
+
+        # оставляем уникальные
+        # (округляем до миллиметра, чтобы не было дублей по плавающей точке)
+        uniq = {}
+        for x, y in ips:
+            key = (round(x, 3), round(y, 3))
+            uniq[key] = (x, y)
+        pts = list(uniq.values())
+
+        if len(pts) >= 2:
+            # длина внутри AABB = наибольшее расстояние между любыми двумя точками пересечения
+            max_d = 0.0
+            for i in range(len(pts)):
+                for j in range(i + 1, len(pts)):
+                    dx = pts[i][0] - pts[j][0]
+                    dy = pts[i][1] - pts[j][1]
+                    d = math.hypot(dx, dy)
+                    if d > max_d:
+                        max_d = d
+            # если длина ≥ threshold — пересекаем
+            if max_d >= threshold:
+                crossed = True
+
+        if crossed:
             break
 
+    # обновление флага/счётчика
     if crossed and not ctx.get(prev_flag_key, False):
         ctx[metric_key] = ctx.get(metric_key, 0) + 1
         ctx[prev_flag_key] = True
@@ -338,99 +409,83 @@ def _analyze_line_crossing(ctx: Dict[str, Any],
 
 
 def analyze_line_count_time(frame, res, ctx):
-    """
-    Считает пересечения всех линий, но только если
-    текущее видео-время в диапазоне [startTime, endTime] для этой метрики.
-    """
-    # извлечём данные по метрике из active_metrics
     metric = ctx.get("active_metrics", {}).get("line_count_time")
     if metric is None:
         return
-
-    # вычисляем текущее время видео (в секундах)
     frame_idx = ctx.get("frame_idx", 1)
     current_time = (frame_idx - 1) * ctx.get("dt", 0.0)
-
-    # проверяем границы
-    st = metric.get("startTime")
-    if st is not None and current_time < float(st):
+    if (metric.get("startTime") is not None and current_time < float(metric["startTime"])) or \
+            (metric.get("endTime") is not None and current_time > float(metric["endTime"])):
         return
-    et = metric.get("endTime")
-    if et is not None and current_time > float(et):
-        return
-
-    # если в диапазоне — считаем пересечение
-    _analyze_line_crossing(
-        ctx,
-        ctx.get("line_list", []),
-        prev_flag_key="prev_line_cross",
-        metric_key="line_count_time"
-    )
+    _analyze_line_crossing(ctx, ctx.get("line_list", []), "prev_line_cross", "line_count_time")
 
 
 def analyze_line_count_horizontal(frame, res, ctx):
-    # только для горизонтальных
-    _analyze_line_crossing(
-        ctx,
-        ctx.get("horizontal_line_list", []),
-        prev_flag_key="prev_horizontal_cross",
-        metric_key="line_count_horizontal"
-    )
+    _analyze_line_crossing(ctx, ctx.get("horizontal_line_list", []),
+                           "prev_horizontal_cross", "line_count_horizontal")
 
 
 def analyze_centr_time(frame, res, ctx):
     """
-    Считаем время (в секундах), пока мышь внутри центрального круга.
+    Считает время (в секундах), пока AABB мышиного бокса
+    пересекает центральную окружность (center_circle).
     """
-    pos = ctx.get("mouse_position")
-    center = ctx.get("center_circle")
-    if pos is None or center is None:
+    bbox = ctx.get("mouse_position_absolute")  # [xmin, ymin, xmax, ymax]
+    center = ctx.get("center_circle")  # {"x": cx, "y": cy, "r": r}
+    dt = ctx.get("dt", 0.0)
+
+    if bbox is None or center is None:
         return
-    dx = pos[0] - center["x"]
-    dy = pos[1] - center["y"]
-    if dx * dx + dy * dy <= center["r"] ** 2:
-        ctx["centr_time"] = ctx.get("centr_time", 0.0) + ctx["dt"]
+
+    xmin, ymin, xmax, ymax = bbox
+    cx, cy, r = center["x"], center["y"], center["r"]
+
+    # --- debug print ---
+    print(f"analyze_centr_time: bbox=[{xmin:.1f},{ymin:.1f},{xmax:.1f},{ymax:.1f}], "
+          f"circle_center=({cx:.1f},{cy:.1f}), r={r:.1f}")
+
+    # Находим ближайшую к центру круга точку на AABB (clamp)
+    closest_x = max(xmin, min(cx, xmax))
+    closest_y = max(ymin, min(cy, ymax))
+
+    dist_sq = (closest_x - cx) ** 2 + (closest_y - cy) ** 2
+    print(f"  closest_point=({closest_x:.1f},{closest_y:.1f}), "
+          f"dist_sq={dist_sq:.1f}, r^2={r * r:.1f}")
+
+    # Если эта точка внутри круга — пересечение есть
+    if dist_sq <= r * r:
+        old = ctx.get("centr_time", 0.0)
+        ctx["centr_time"] = old + dt
+        print(f"  -> пересекает, centr_time: {old:.2f} + {dt:.2f} = {ctx['centr_time']:.2f}")
+    else:
+        print("  -> не пересекает")
 
 
 def analyze_perf_time(frame, res, ctx):
-    """
-    Считаем время (в секундах), пока мышь между средним и внешним кругом.
-    """
-    pos = ctx.get("mouse_position")
-    periphery = ctx.get("periphery_circle")
-    middle = ctx.get("middle_circle")
-    if pos is None or periphery is None or middle is None:
+    metric = ctx.get("mouse_position_absolute")
+    per = ctx.get("periphery_circle")
+    mid = ctx.get("middle_circle")
+    if metric is None or per is None or mid is None:
         return
-    dx_p = pos[0] - periphery["x"]
-    dy_p = pos[1] - periphery["y"]
-    dx_m = pos[0] - middle["x"]
-    dy_m = pos[1] - middle["y"]
-    inside_periphery = (dx_p * dx_p + dy_p * dy_p) <= periphery["r"] ** 2
-    outside_middle = (dx_m * dx_m + dy_m * dy_m) >= middle["r"] ** 2
-    if inside_periphery and outside_middle:
+    cx = (metric[0] + metric[2]) / 2
+    cy = (metric[1] + metric[3]) / 2
+    inside_per = (cx - per["x"]) ** 2 + (cy - per["y"]) ** 2 <= per["r"] ** 2
+    outside_mid = (cx - mid["x"]) ** 2 + (cy - mid["y"]) ** 2 >= mid["r"] ** 2
+    if inside_per and outside_mid:
         ctx["perf_time"] = ctx.get("perf_time", 0.0) + ctx["dt"]
 
 
 def analyze_defecation_count(frame, res, ctx):
-    """
-    Для дефекаций используем отдельную модель model_def.
-    Берём её предсказания, центр каждого бокса «defecation» и,
-    если он дальше DEFECATION_EPSILON от всех ранее сохранённых,
-    ++ctx['defecation_count'] и записываем эту позицию.
-    """
     rd = model_def.predict(frame, conf=0.5, verbose=False)[0]
-    positions = ctx.setdefault("defecation_positions", [])
+    pos_list = ctx.setdefault("defecation_positions", [])
     for i, cls in enumerate(rd.boxes.cls):
         if rd.names[int(cls)].lower() == "defecation":
             x1, y1, x2, y2 = map(float, rd.boxes.xyxy[i])
             cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
-            # если новая точка далеко от всех старых
-            if all(math.hypot(cx - px, cy - py) > DEFECATION_EPSILON
-                   for px, py in positions):
+            if all(math.hypot(cx - px, cy - py) > DEFECATION_EPSILON for px, py in pos_list):
                 ctx["defecation_count"] = ctx.get("defecation_count", 0) + 1
-                positions.append((cx, cy))
-    # сохраняем обновлённый список позиций дефекаций
-    ctx["defecation_positions"] = positions
+                pos_list.append((cx, cy))
+    ctx["defecation_positions"] = pos_list
 
 
 METRIC_FUNCS: Dict[str, Callable] = {
@@ -447,10 +502,6 @@ METRIC_FUNCS: Dict[str, Callable] = {
 
 # === Функция отрисовки боксов по цветовой карте ===
 def plot_boxes(image, boxes, result, names, color_map):
-    """
-    Рисует боксы из result.boxes на image, подписи класса и confidence,
-    цвет берётся из color_map по имени класса.
-    """
     for i, box in enumerate(boxes):
         x1, y1, x2, y2 = map(int, box)
         cls_idx = int(result.boxes.cls[i])
@@ -470,14 +521,56 @@ def plot_boxes(image, boxes, result, names, color_map):
     return image
 
 
-def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
+def transformation_annotations_coordinate(elems: Dict[str, Any],
+                                          roi: tuple[int, int, int, int],
+                                          mask_w: int,
+                                          mask_h: int,
+                                          ctx: Dict[str, Any]) -> np.ndarray:
+    x_off, y_off, w_roi, h_roi = roi
+    sx, sy = w_roi / mask_w, h_roi / mask_h
+
+    # Отрисовка окружностей
+    def dc(c):
+        x = int(c["x"] * sx) + x_off
+        y = int(c["y"] * sy) + y_off
+        r = int(c["r"] * ((sx + sy) / 2))
+        ctx[name] = {"x": x, "y": y, "r": r}
+
+    for name, clr in [
+        ("periphery_circle", (255, 0, 0), "Periphery"),
+        ("middle_circle", (0, 165, 255), "Middle"),
+        ("center_circle", (0, 255, 0), "Center")
+    ]:
+        if elems.get(name):
+            dc(elems[name])
+
+    # Отрисовка отверстий
+    for i, hole in enumerate(elems.get("holes", []), start=1):
+        dc(hole)
+
+    # Объединяем все линии и пронумеровываем по порядку
+    all_lines = elems["lines"]["horizontal"] + elems["lines"]["vertical"]
+    for idx, L in enumerate(all_lines, start=1):
+        x1 = int(L["x1"] * sx) + x_off
+        y1 = int(L["y1"] * sy) + y_off
+        x2 = int(L["x2"] * sx) + x_off
+        y2 = int(L["y2"] * sy) + y_off
+        
+def draw_annotations(frame: np.ndarray,
+                     elems: Dict[str, Any],
+                     roi: tuple[int, int, int, int],
+                     mask_w: int,
+                     mask_h: int,
+                     ctx: Dict[str, Any],
+                     frame_idx: int) -> np.ndarray:
     x_off, y_off, w_roi, h_roi = roi
     out = frame.copy()
     cv2.rectangle(out, (x_off, y_off), (x_off + w_roi, y_off + h_roi), (200, 200, 200), 1)
     sx, sy = w_roi / mask_w, h_roi / mask_h
 
+    # Отрисовка окружностей
     def dc(c, clr, lab):
-        x = int(c["x"] * sx) + x_off;
+        x = int(c["x"] * sx) + x_off
         y = int(c["y"] * sy) + y_off
         r = int(c["r"] * ((sx + sy) / 2))
         cv2.circle(out, (x, y), r, clr, 2)
@@ -489,56 +582,102 @@ def draw_annotations(frame, elems, roi, mask_w, mask_h, ctx, frame_idx):
         ("middle_circle", (0, 165, 255), "Middle"),
         ("center_circle", (0, 255, 0), "Center")
     ]:
-        if elems.get(name): dc(elems[name], clr, lab)
+        if elems.get(name):
+            dc(elems[name], clr, lab)
 
+    # Отрисовка отверстий
     for i, hole in enumerate(elems.get("holes", []), start=1):
         dc(hole, (0, 255, 255), f"Hole {i}")
 
-    for kind, clr, tag in [("horizontal", (255, 0, 0), "H"), ("vertical", (0, 0, 255), "V")]:
-        for L in elems["lines"].get(kind, []):
-            x1 = int(L["x1"] * sx) + x_off;
-            y1 = int(L["y1"] * sy) + y_off
-            x2 = int(L["x2"] * sx) + x_off;
-            y2 = int(L["y2"] * sy) + y_off
-            cv2.line(out, (x1, y1), (x2, y2), clr, 2)
-            cv2.putText(out, tag, (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, clr, 1)
+    # Объединяем все линии и пронумеровываем по порядку
+    all_lines = elems["lines"]["horizontal"] + elems["lines"]["vertical"]
+    for idx, L in enumerate(all_lines, start=1):
+        x1 = int(L["x1"] * sx) + x_off
+        y1 = int(L["y1"] * sy) + y_off
+        x2 = int(L["x2"] * sx) + x_off
+        y2 = int(L["y2"] * sy) + y_off
+        # цвет: красный для horizontal, синий для vertical
+        if L in elems["lines"]["horizontal"]:
+            clr = (255, 0, 0)
+        else:
+            clr = (0, 0, 255)
+        cv2.line(out, (x1, y1), (x2, y2), clr, 2)
+        cv2.putText(out, str(idx), (x1, y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, clr, 1)
 
-    base_x = x_off + 10
-    base_y = y_off + h_roi - 10
-    time_sec = (frame_idx - 1) * ctx.get("dt", 0.0)
-    cv2.putText(
-        out,
-        f"Frame {frame_idx} ({time_sec:.2f}s)",
-        (base_x, base_y),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-    )
+    # Выводим номер кадра и время
+    time_sec = (frame_idx - 1) * ctx["dt"]
+    cv2.putText(out, f"Frame {frame_idx} ({time_sec:.2f}s)",
+                (x_off + 10, y_off + h_roi - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-    # список тех метрик, которые нужно показывать
-    metrics_to_show = [
-        "mouse_moved",
-        "rearing",
-        "grooming_count",
-        "hole_peek",
-        "line_count_time",
-        "line_count_horizontal",
-        "centr_time",
-        "perf_time",
-        "defecation_count"
-    ]
-
-    # перебираем только нужные и активные метрики
+    # Значения активных метрик
     line_offset = 1
-    for name in metrics_to_show:
+    for name in ctx["active_metrics"].keys():
         if name in ctx:
-            val = ctx[name]
-            y = int(base_y - 30 * line_offset)
-            cv2.putText(out, f"{name}: {val}", (base_x, y),
+            y = int(y_off + h_roi - 10 - 30 * line_offset)
+            cv2.putText(out, f"{name}: {ctx[name]}",
+                        (x_off + 10, y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             line_offset += 1
 
     return out
 
+def transform_annotations_coordinate(
+    ctx: Dict[str, Any],
+    roi: tuple[int, int, int, int],
+    mask_w: int,
+    mask_h: int
+) -> None:
+    """
+    Преобразует в ctx:
+      - center_circle, middle_circle, periphery_circle
+      - holes_list
+      - line_list, horizontal_line_list
+    из системы координат маски/ROI в абсолютные координаты кадра.
+
+    Параметры:
+      ctx     – словарь контекста с уже загруженными в него аннотациями
+      roi     – кортеж (x_off, y_off, w_roi, h_roi)
+      mask_w  – ширина исходного mask.png
+      mask_h  – высота исходного mask.png
+    """
+    x_off, y_off, w_roi, h_roi = roi
+    sx = w_roi / mask_w
+    sy = h_roi / mask_h
+    s_radius = (sx + sy) / 2
+
+    # 1) Круги
+    for name in ("periphery_circle", "middle_circle", "center_circle"):
+        c = ctx.get(name)
+        if c is not None:
+            X = c["x"] * sx + x_off
+            Y = c["y"] * sy + y_off
+            R = c["r"] * s_radius
+            ctx[name] = {"x": X, "y": Y, "r": R}
+
+    # 2) Отверстия
+    holes = []
+    for h in ctx.get("holes_list", []):
+        X = h["x"] * sx + x_off
+        Y = h["y"] * sy + y_off
+        R = h["r"] * s_radius
+        holes.append({"x": X, "y": Y, "r": R})
+    ctx["holes_list"] = holes
+
+    # 3) Линии
+    def _convert_lines(key: str):
+        new = []
+        for L in ctx.get(key, []):
+            X1 = L["x1"] * sx + x_off
+            Y1 = L["y1"] * sy + y_off
+            X2 = L["x2"] * sx + x_off
+            Y2 = L["y2"] * sy + y_off
+            new.append({"x1": X1, "y1": Y1, "x2": X2, "y2": Y2})
+        ctx[key] = new
+
+    _convert_lines("line_list")
+    _convert_lines("horizontal_line_list")
 
 # def predict_on_roi(frame: np.ndarray, roi: tuple):
 #     x_off, y_off, w_roi, h_roi = roi
@@ -596,13 +735,14 @@ def process_video_for_metrics(expId,
         "periphery_circle": elems2.get("periphery_circle"),
         "middle_circle": elems2.get("middle_circle"),
         "center_circle": elems2.get("center_circle"),
-        # кулдауны: не считать повторное событие, пока >0
         "rearing_cooldown": COULDOWN,
         "grooming_cooldown": COULDOWN,
         "last_rearing_pos": None,
         "last_grooming_pos": None,
         "defecation_positions": [],
     }
+    
+    transform_annotations_coordinate(ctx, roi, mask_w, mask_h)
 
     # собираем параметры
     base    = os.path.splitext(os.path.basename(video_path))[0]

@@ -5,7 +5,7 @@ from analyze_experiment import analyze_experiment, get_video_paths, process_vide
 import aio_pika
 
 # Ограничим до 4 одновременных задач
-SEMAPHORE = asyncio.Semaphore(4)
+SEMAPHORE = asyncio.Semaphore(3)
 
 async def publish_event(pattern: str, payload: dict):
     connection = await aio_pika.connect_robust(RABBIT_URL)

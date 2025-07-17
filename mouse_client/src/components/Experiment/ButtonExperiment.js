@@ -17,17 +17,29 @@ const ButtonExperiment = ({ experiment, onRefresh }) => {
         onRefresh();
     };
 
+    const handleStopAnalysis = async () => {
+        try {
+            const response = await API_SERVICE.get(`/experiment/stopAnalyze/${experiment.id}`);
+            message.success("Анализ прекращён");
+            console.log("Анализ прекращён:", response);
+        } catch (error) {
+            console.error("Ошибка при прекращении анализа:", error);
+            message.error("Ошибка при прекращении анализа");
+        }
+        onRefresh();
+    };
+
     const statusTitle = experiment.status?.statusName || "";
 
     const canStartAnalysis = statusTitle === "Создан";
     const canStopAnalysis = statusTitle === "Анализ";
     const canGenerateReport =
         statusTitle === "Успешно завершено" || statusTitle === "Частично успешно";
-
+    const canRepeatAnalysis = canGenerateReport || statusTitle === "Анализ прекращен" || statusTitle === "Ошибка во время выполнения";
     return (
         <>
             <Row gutter={[16, 16]} justify="start" style={{ marginTop: 16 }}>
-                { (canGenerateReport || canStartAnalysis) && <Col>
+                {(canRepeatAnalysis || canStartAnalysis) && <Col>
                     <Button
                         className="custom-btn custom-btn-primary"
                         onClick={(e) => {
@@ -36,7 +48,7 @@ const ButtonExperiment = ({ experiment, onRefresh }) => {
                         }}
                     >
                         {canStartAnalysis && `Начать `}
-                        {canGenerateReport && `Повторить `}
+                        {canRepeatAnalysis && `Повторить `}
                         интеллектуальный анализ
                     </Button>
                 </Col>}
@@ -61,7 +73,7 @@ const ButtonExperiment = ({ experiment, onRefresh }) => {
                             className="custom-btn custom-btn-primary"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/experiment/${experiment.id}/report`);
+                                handleStopAnalysis();
                             }}
                         >
                             Прекратить анализ

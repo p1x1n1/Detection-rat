@@ -42,8 +42,11 @@ const NavBar = () => {
         className="navbar__logo"
         onClick={() => navigate(USER_GUIDE_ROUTE)}
       >
-        Лаборатория
-        <img src="/mouse.png" alt="Эксперименты" className="navbar__icon-img" />
+        <div className="navbar__logo_title_container">
+          <p>Лаборатория</p>
+          <p className='navbar__logo_title_user_guide'>Руководство пользователя</p>
+        </div>
+        <img src="/mouse.png" alt="Эксперименты" className="navbar__icon-img-logo" />
       </div>
 
       <nav className="navbar__nav">
@@ -69,7 +72,7 @@ const NavBar = () => {
                   }
                 >
                   Видео
-                  <img src="/mouse.png" alt="Эксперименты" className="navbar__icon-img" />
+                  <img src="/play-video.png" alt="Эксперименты" className="navbar__icon-img" />
                 </NavLink>
               </li>
               <li className="navbar__item">

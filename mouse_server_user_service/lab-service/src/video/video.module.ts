@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { VideoController } from './video.controller';
 import { VideoService } from './video.service';
 import { Video } from './video.entity';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { Experiment } from 'src/experiment/experiment.entity';
 import { FileModule } from 'src/file/file.module';
 import { VideoExperimentModule } from 'src/video-experiment/video-experiment.module';
@@ -11,10 +11,10 @@ import { VideoExperimentModule } from 'src/video-experiment/video-experiment.mod
   imports: [
     TypeOrmModule.forFeature([Video, Experiment]),
     FileModule,
-    VideoExperimentModule
+    forwardRef(() => VideoExperimentModule),
   ],
   controllers: [VideoController],
   providers: [VideoService],
-  exports: [VideoService]
+  exports: [VideoService, TypeOrmModule],
 })
-export class VideoModule { }
+export class VideoModule {}
