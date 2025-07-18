@@ -7,7 +7,7 @@ import { ExperimentService } from './experiment.service';
 import { CreateExperimentDto } from './dto/create-experiment.dto';
 import { Experiment } from './experiment.entity';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { AnalyzedError, AnalyzeProccessed, AnalyzeResult } from './dto/analyze-result.dto';
+import { AnalyzedError, AnalyzeProccessed, AnalyzeResult, AnalyzeStopped } from './dto/analyze-result.dto';
 import * as Excel from 'exceljs';
 import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -16,7 +16,7 @@ import { CurrentUser, JwtUserPayload } from 'src/auth/jwt.strategy';
 @ApiTags('Experiment')
 @Controller('experiment')
 export class ExperimentController {
-  constructor(private readonly experimentService: ExperimentService) {}
+  constructor(private readonly experimentService: ExperimentService) { }
 
   @ApiOperation({ summary: 'Создать эксперимент' })
   @ApiResponse({ status: 201, description: 'Эксперимент создан', type: Experiment })
@@ -145,5 +145,10 @@ export class ExperimentController {
   @EventPattern('video.analyze.error')
   handleError(@Payload() data: AnalyzedError) {
     this.experimentService.analyzedError(data);
+  }
+
+  @EventPattern('video.analyze.stopped')
+  handleStopped(@Payload() data: AnalyzeStopped) {
+    this.experimentService.analyzeStopped(data);
   }
 }

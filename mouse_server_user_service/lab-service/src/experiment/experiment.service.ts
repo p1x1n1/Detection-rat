@@ -17,7 +17,7 @@ import { Status } from 'src/status/status.entity';
 import { lastValueFrom } from 'rxjs';
 import * as path from 'path';
 import { JwtUserPayload } from 'src/auth/jwt.strategy';
-import { AnalyzeProccessed, AnalyzedError, AnalyzeResult } from './dto/analyze-result.dto';
+import { AnalyzeProccessed, AnalyzedError, AnalyzeResult, AnalyzeStopped } from './dto/analyze-result.dto';
 
 @Injectable()
 export class ExperimentService {
@@ -250,6 +250,32 @@ export class ExperimentService {
         const partial = await this.statusRepository.findOneBy({ statusName: 'Частично успешно' });
         exp.status = partial;
       }
+      await this.experimentRepository.save(exp);
+    }
+  }
+
+    /**
+   * Обработка события остановки анализа от сервиса 1
+   */
+  async analyzeStopped(data: AnalyzeStopped): Promise<void> {
+    const expId = data.expId;
+
+    // статус «Анализ прекращён»
+    const stoppedStatus = await this.statusRepository.findOneBy({ statusName: 'Анализ прекращен' });
+    if (!stoppedStatus) throw new Error('Статус "Анализ прекращён" не найден');
+
+    // обновляем все видео-эксперименты
+    await this.videoExperimentRepository
+      .createQueryBuilder()
+      .update()
+      .set({ status: stoppedStatus })
+      .where('experimentId = :expId', { expId })
+      .execute();
+
+    // обновляем сам эксперимент
+    const exp = await this.experimentRepository.findOneBy({ id: expId });
+    if (exp) {
+      exp.status = stoppedStatus;
       await this.experimentRepository.save(exp);
     }
   }

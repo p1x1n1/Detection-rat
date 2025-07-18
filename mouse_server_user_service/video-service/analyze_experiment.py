@@ -441,24 +441,24 @@ def analyze_centr_time(frame, res, ctx):
     cx, cy, r = center["x"], center["y"], center["r"]
 
     # --- debug print ---
-    print(f"analyze_centr_time: bbox=[{xmin:.1f},{ymin:.1f},{xmax:.1f},{ymax:.1f}], "
-          f"circle_center=({cx:.1f},{cy:.1f}), r={r:.1f}")
+    # print(f"analyze_centr_time: bbox=[{xmin:.1f},{ymin:.1f},{xmax:.1f},{ymax:.1f}], "
+    #       f"circle_center=({cx:.1f},{cy:.1f}), r={r:.1f}")
 
     # Находим ближайшую к центру круга точку на AABB (clamp)
     closest_x = max(xmin, min(cx, xmax))
     closest_y = max(ymin, min(cy, ymax))
 
     dist_sq = (closest_x - cx) ** 2 + (closest_y - cy) ** 2
-    print(f"  closest_point=({closest_x:.1f},{closest_y:.1f}), "
-          f"dist_sq={dist_sq:.1f}, r^2={r * r:.1f}")
+    # print(f"  closest_point=({closest_x:.1f},{closest_y:.1f}), "
+    #       f"dist_sq={dist_sq:.1f}, r^2={r * r:.1f}")
 
     # Если эта точка внутри круга — пересечение есть
     if dist_sq <= r * r:
         old = ctx.get("centr_time", 0.0)
         ctx["centr_time"] = old + dt
-        print(f"  -> пересекает, centr_time: {old:.2f} + {dt:.2f} = {ctx['centr_time']:.2f}")
-    else:
-        print("  -> не пересекает")
+        # print(f"  -> пересекает, centr_time: {old:.2f} + {dt:.2f} = {ctx['centr_time']:.2f}")
+    # else:
+        # print("  -> не пересекает")
 
 
 def analyze_perf_time(frame, res, ctx):

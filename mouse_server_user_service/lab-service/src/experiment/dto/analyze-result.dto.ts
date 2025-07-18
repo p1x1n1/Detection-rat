@@ -14,3 +14,8 @@ export interface AnalyzedError{
     videoPath: string;
     error: string;    
 }
+
+export class AnalyzeStopped {
+  expId: number;
+  videoPath?: string;
+}

@@ -60,7 +60,7 @@ export class AuthService {
 
     async getUserInfo(token: string) {
         let userLogin;
-        console.log('token');
+        // console.log('token');
         try {
             const decoded = this.jwtService.verify(token);
             userLogin = decoded.login;
