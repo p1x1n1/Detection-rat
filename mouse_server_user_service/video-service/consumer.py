@@ -79,32 +79,32 @@ async def handle_message(body: bytes):
             print("[!] Нет данных эксперимента в сообщении")
             return
 
-        exp_id = experiment.get('id')
-        
+        # Старт анализа
+        if pattern == 'video.analyze':
+            exp_id  = experiment['id']
+            metrics = analyze_experiment(experiment)
+            if not metrics:
+                print(f"[!] Эксперимент {exp_id}: нет метрик")
+                return
+            try:
+                video_paths = get_video_paths(experiment)
+            except FileNotFoundError as e:
+                print(f"[ERROR] Видео не найдено: {e}")
+                return
+
+            # создаём и запускаем таски — но не ждём их тут!
+            for video_path in video_paths:
+                task = asyncio.create_task(handle_video(exp_id, video_path, metrics))
+                tasks_map[exp_id][video_path] = task
+            print(f"[LAUNCHED] {len(video_paths)} задач для exp {exp_id}")
+            return
+
+        # Команда остановки
         if pattern == 'video.analyze.stopped':
-            print(f"[STOP] Получена команда остановки для exp {exp_id}")
+            exp_id = experiment['id']
+            print(f"[STOP CMD] exp={exp_id}")
             await stop_analysis(exp_id)
             return
-        
-        metrics = analyze_experiment(experiment)
-        if not metrics:
-            print(f"[!] Эксперимент {exp_id}: нет метрик")
-            return
-
-        try:
-            video_paths = get_video_paths(experiment)
-        except FileNotFoundError as e:
-            print(f"[ERROR] Видео не найдено: {e}")
-            return
-
-        # запускаем все видео параллельно, сохраняем таски
-        tasks = []
-        for video_path in video_paths:
-            task = asyncio.create_task(handle_video(exp_id, video_path, metrics))
-            tasks_map[exp_id][video_path] = task
-            tasks.append(task)
-        # ждём завершения, но если stop_analysis вызвал cancel, то здесь будет CancelledError
-        await asyncio.gather(*tasks, return_exceptions=True)
 
     except Exception as e:
         print(f"[ERROR] при анализе: {e}")
