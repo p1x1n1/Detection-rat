@@ -4,243 +4,246 @@
 
 Архитектура:
 
-- **Клиент** — React SPA (`mouse_client`), интерфейс для пользователей лаборатории.
-- **Сервер** — NestJS-сервис `lab-service` (`mouse_server_user_service/lab-service`): REST API, хранение данных в PostgreSQL, выдача статусов, генерация отчётов, работа с RabbitMQ.
-             — Python-сервис `video-service` (`mouse_server_user_service/video-service`): асинхронный воркер, который слушает очередь RabbitMQ, анализирует видео с помощью YOLO + OpenCV и отдаёт результаты обратно в `lab-service`.
+- **Клиент** — React SPA (`mouse_client`), интерфейс для пользователей лаборатории.  
+- **Серверы**:  
+  - **lab-service** — NestJS (`mouse_server_user_service/lab-service`): REST API, PostgreSQL, статусы, отчёты, взаимодействие с RabbitMQ;  
+  - **video-service** — Python (`mouse_server_user_service/video-service`): асинхронный воркер, анализирующий видео с помощью YOLO + OpenCV и отправляющий результаты обратно в `lab-service`.
 
-Связь между сервисами идёт через RabbitMQ (паттерны сообщений `video.analyze`, `video.analyze.*`).
+Связь между сервисами осуществляется через RabbitMQ  
+(`video.analyze`, `video.analyze.*`).
 
 ---
 
 ## Основные возможности
 
 - управление пользователями и ролями;
-- загрузка и хранение видеоэкспериментов;
+- загрузка и хранение видеоматериалов;
 - описание животных (мышей), цветов, статусов и метрик;
 - создание экспериментов:
-  - выбор набора видео,
-  - выбор метрик с промежутками времени;
-- запуск и остановка анализа экспериментов;
-- отслеживание статусов анализа по каждому видео;
-- сохранение результатов метрик по видео;
-- выгрузка отчёта по эксперименту в формате **Excel**.
+  - выбор набора видео;
+  - выбор метрик и временных промежутков;
+- запуск и остановка анализа;
+- статус трекинг всех видео в эксперименте;
+- сохранение результатов;
+- генерация Excel-отчёта.
 
+---
 
-Запуск клиента 
-```
+# Запуск
+
+### Клиент
+```bash
 cd mouse_client
 npm run start
-```
+````
 
-Запуск сервера взаимодействия с  пользователем
-```
-cd mouse_server_user_service\lab-service
+### Сервер взаимодействия с пользователем (NestJS)
+
+```bash
+cd mouse_server_user_service/lab-service
 npm run start:dev
 ```
 
-```
-cd mouse_server_user_service\video-service
+### Видео-сервис (Python)
+
+```bash
+cd mouse_server_user_service/video-service
 .\venv\Scripts\Activate.ps1
 python .\consumer.py
 ```
 
+---
 
-**Клиент (`mouse_client`) - SPA на React 18 c использованием:**
+# Клиент (`mouse_client`)
 
-- `react-router-dom` — роутинг;
-- `mobx-react-lite` — состояние пользователя и сессии;
-- `antd` / `react-bootstrap` — UI-компоненты;
-- e2e-тесты на `mocha` + `selenium-webdriver`, мок-сервер на `msw`.  
+SPA на **React 18**, использует:
 
-Адрес API задаётся переменной окружения:
+* `react-router-dom` — роутинг;
+* `mobx-react-lite` — хранилище состояния;
+* `antd` / `react-bootstrap` — UI;
+* тесты на `mocha` + `selenium-webdriver`, мок-сервер на `msw`.
+
+API-адрес задаётся переменной:
 
 ```bash
 REACT_APP_API_URL=http://localhost:7000
 ```
 
-По умолчанию клиент использует http://localhost:7000 как базовый URL.
+По умолчанию — `http://localhost:7000`.
 
-Приложение:
+Функциональность клиента:
 
-    даёт формы регистрации/логина;
+* регистрация/логин;
+* загрузка видео и управление ими;
+* создание и управление экспериментами;
+* выбор метрик;
+* наблюдение статусов анализа;
+* скачивание Excel-отчёта.
 
-    позволяет управлять видео, экспериментами, метриками, животными;
+---
 
-    показывает статусы экспериментов и прогресс анализа;
+# **lab-service** (NestJS, PostgreSQL, RabbitMQ)
 
-    даёт скачать Excel-отчёт.
-
-
-**lab-service (NestJS, PostgreSQL, RabbitMQ)**
-
-Путь: mouse_server_user_service/lab-service
+**Путь:** `mouse_server_user_service/lab-service`
 
 Основные технологии:
 
-NestJS 10 (@nestjs/common, @nestjs/core, @nestjs/swagger);
+* **NestJS 10**
+* **PostgreSQL + TypeORM**
+* RabbitMQ (`@nestjs/microservices`, `amqp-connection-manager`)
+* Раздача статических файлов (видео, результаты)
+* Swagger: **[http://localhost:7000/api/docs](http://localhost:7000/api/docs)**
 
-PostgreSQL + TypeORM;
+---
 
-RabbitMQ через @nestjs/microservices и amqp-connection-manager;
+## Основные сущности (TypeORM)
 
-раздача статических файлов (ServeStaticModule) — видеоролики и результаты анализа;
+* **User**, **Role** — пользователи и роли
+* **Video** — видеозаписи экспериментов
+* **Status** — статус видео и эксперимента
+* **Metric** — тип метрики
+* **Experiment** — описание эксперимента
+* **MetricExperiment** — метрика + время начала/конца
+* **VideoExperiment** — связь видео с экспериментом
+* **MetricVideoExperiment** — рассчитанные результаты метрик
 
-Swagger-документация по адресу http://localhost:7000/api/docs.
+---
 
-Основные сущности (TypeORM)
+## Основные модули NestJS
 
-User, Role — пользователи и роли.
+* **AuthModule** — JWT-авторизация
+* **UserModule** — управление пользователями и аватарами
+* **VideoModule** — загрузка и хранение видео
+* **ExperimentModule** — создание, запуск, остановка, получение результатов
+* **Metric*** — модули для работы с метриками
+* **StatusModule** — статусы системы
+* **FileModule** — статические файлы (`static/`)
 
-Video — видеофайлы экспериментов.
+---
 
-Status — статус видео и эксперимента (создан, в очереди, в процессе, завершён, ошибка и т.п.).
+## Взаимодействие с RabbitMQ
 
-Metric — тип метрики (заглядывание в нору, стойки, дефекации, время в секторах и др.).
+`main.ts` поднимает:
 
-Experiment — эксперимент в целом.
+* HTTP-сервер (`7000`)
+* RMQ-микросервис, слушающий очередь:
 
-MetricExperiment — привязка метрики к эксперименту с интервалами времени.
+  * **video_analysis_response_queue**
 
-VideoExperiment — привязка видео к эксперименту + статус и ссылка на результирующее видео.
+### Отправка задач на анализ
 
-MetricVideoExperiment — значение метрики по конкретному видео в эксперименте.
+`GET /experiment/analyze/:id`:
 
-Основные модули
+* эксперимент получает статус *"Анализ"*
+* видео → *"В очереди"*
+* в RabbitMQ отправляется событие:
 
-AuthModule — JWT-авторизация, защита эндпоинтов через AuthGuard('jwt').
+```json
+{
+  "pattern": "video.analyze",
+  "data": { "exp": { ... } }
+}
+```
 
-UserModule — управление пользователями (создание, обновление, аватарки).
+### Остановка анализа
 
-VideoModule — загрузка и управление видеороликами.
+`GET /experiment/stopAnalyze/:id`:
 
-ExperimentModule — создание/чтение/удаление экспериментов и запуск анализа.
+* статусы → "Анализ прекращён"
+* RMQ-событие `video.analyze.stopped`
 
-Metric*-модули — управление метриками и их связями.
+### Подписка на ответы из RabbitMQ
 
-StatusModule — справочник статусов.
+`ExperimentController` слушает:
 
-FileModule — сохранение файлов в static/.
+* `video.analyze.completed` — видео обработано, метрики готовы
+* `video.analyze.processed` — видео взято в работу
+* `video.analyze.error` — ошибка обработки
+* `video.analyze.stopped` — обработка остановлена
 
-Работа с RabbitMQ
+### Excel-отчёт
 
-В main.ts Nest-приложение поднимает HTTP-сервер и подключает микросервис RMQ:
+`GET /experiment/:id/report/excel` — возвращает сформированный `.xlsx`.
 
-очередь ответов: video_analysis_response_queue (по умолчанию);
+---
 
-подключение к amqp://guest:guest@localhost:5672.
+# **video-service** (Python, YOLO, OpenCV, RabbitMQ)
 
-Сервис экспериментов (ExperimentService):
+**Путь:** `mouse_server_user_service/video-service`
 
-при GET /experiment/analyze/:id:
+Назначение — асинхронный обработчик видео:
 
-обновляет статус эксперимента (например, "Анализ");
+1. Слушает очередь **video_analysis_queue**
+2. Получает задачу `video.analyze` → список видео + метрики
+3. Обрабатывает каждое видео:
 
-переводит связанные VideoExperiment в статус "В очереди";
+   * запускает отдельную async-таску
+   * ограничивает параллелизм через `asyncio.Semaphore`
+4. Считает метрики:
 
-отправляет событие video.analyze в RabbitMQ с объектом эксперимента (exp).
+   * заглядывания в нору
+   * стойки (rearing)
+   * груминг
+   * дефекации
+   * время в ROI
+   * пересечения линий
+5. Отправляет результаты в **video_analysis_response_queue**
 
-при GET /experiment/stopAnalyze/:id:
+---
 
-переводит эксперимент и его видео в статус "Анализ прекращен";
-
-отправляет событие video.analyze.stopped.
-
-Контроллер экспериментов (ExperimentController) подписан на события:
-
-video.analyze.completed — результаты метрик по видео;
-
-video.analyze.processed — видео перешло в статус "В процессе";
-
-video.analyze.error — ошибка обработки видео;
-
-video.analyze.stopped — анализ остановлен.
-
-Excel-отчёт: GET /experiment/:id/report/excel
-Формируется Workbook с заголовками и строками по каждому видео+животному, по всем метрикам, и возвращается как .xlsx.
-
-
-**video-service (Python, YOLO, OpenCV, RabbitMQ)**
-
-Путь: mouse_server_user_service/video-service
-
-Назначение: асинхронный воркер, который:
-
-Слушает очередь RabbitMQ video_analysis_queue.
-
-Получает сообщение {"pattern": "video.analyze", "data": {"exp": {...}}}.
-
-По описанию эксперимента:
-
-определяет, какие метрики нужно считать;
-
-ищет пути к видео в ../lab-service/static/videos.
-
-По каждому видео:
-
-запускает обработку в отдельной async-таске (ограничение одновременных задач — через asyncio.Semaphore).
-
-считает метрики по кадрам.
-
-Отправляет события обратно в очередь ответов video_analysis_response_queue:
-
-video.analyze.processed — видео взято в обработку;
-
-video.analyze.completed — обработка видео завершена, отданы значения метрик;
-
-video.analyze.error — ошибка обработки;
-
-video.analyze.stopped — обработка остановлена.
-
-Конфигурация (config.py)
+## Конфигурация (config.py)
 
 Используются переменные окружения:
 
-RabbitMQ:
+### RabbitMQ
 
-RABBIT_USER / RABBIT_PASS (по умолчанию guest/guest);
+```
+RABBIT_USER
+RABBIT_PASS
+RABBIT_HOST
+RABBIT_PORT
+QUEUE_NAME             # video_analysis_queue
+RESPONSE_QUEUE         # video_analysis_response_queue
+```
 
-RABBIT_HOST, RABBIT_PORT;
+### PostgreSQL (та же база, что у lab-service)
 
-QUEUE_NAME — очередь заданий (по умолчанию video_analysis_queue);
-
-RESPONSE_QUEUE — очередь ответов (по умолчанию video_analysis_response_queue).
-
-PostgreSQL (та же база, что у lab-service):
-
+```
 LAB_POSTGRES_USER
-
 LAB_POSTGRES_PASSWORD
-
 LAB_POSTGRES_HOST
-
 LAB_POSTGRES_PORT
-
 LAB_POSTGRES_DB
+```
 
-Основные компоненты анализа (analyze_experiment.py)
+---
 
-YOLO-модели (ultralytics.YOLO) для распознавания:
+## Основные компоненты анализа (`analyze_experiment.py`)
 
-mouse, hole_peek, rearing, grooming, defecation, а также ROI (roi).
+Используются модели YOLO (`ultralytics.YOLO`) для распознавания:
 
-Подсчёт:
+* `mouse`
+* `hole_peek`
+* `rearing`
+* `grooming`
+* `defecation`
+* `roi`
 
-количества пересечений горизонтальных/вертикальных линий;
+Поддерживаются:
 
-количества заглядываний в отверстия;
+* маска (`mask.png`)
+* аннотации (`mask_annotations.json`)
+* трансформация координат линий и областей под реальные кадры
 
-количества стоек (rearing);
+### Считаемые метрики:
 
-количества эпизодов груминга;
+* пересечения горизонтальных линий
+* пересечения вертикальных линий
+* заглядывания в отверстия
+* стойки (rearing)
+* эпизоды груминга
+* дефекации
+* время в центральной и периферической зоне
 
-количества дефекаций;
 
-времени нахождения мыши в центральном и периферическом секторах лабиринта.
 
-Поддержка:
-
-загрузки маски (mask.png) и аннотаций (mask_annotations.json);
-
-автоматического подбора ROI;
-
-трансформации аннотированных окружностей/линий под реальные кадры видео.
